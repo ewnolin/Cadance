@@ -1,0 +1,58 @@
+# Cadance API
+
+Express 5 + TypeScript backend for Cadance. SQLite via better-sqlite3 (sync
+runtime queries); schema changes go through Knex migrations.
+
+## Setup
+
+```bash
+cd api
+npm install
+cp .env.example .env   # then edit SESSION_SECRET etc.
+npm run migrate        # create the SQLite schema
+npm run dev            # start with nodemon + ts-node
+```
+
+## Scripts
+
+| Script                  | What it does                              |
+| ----------------------- | ----------------------------------------- |
+| `npm run dev`           | Dev server (nodemon + ts-node)            |
+| `npm run build`         | Compile TypeScript to `dist/`             |
+| `npm start`             | Run the compiled server (`dist/index.js`) |
+| `npm run migrate`       | Apply all pending migrations              |
+| `npm run migrate:make`  | Scaffold a new migration (`-- <name>`)    |
+| `npm run migrate:rollback` | Roll back the last migration batch     |
+
+## Endpoints
+
+All responses use a `{ data, error }` envelope. Auth is cookie-session based
+(`cadance.sid`); send requests with credentials included.
+
+### Auth
+- `POST /auth/register` — `{ email, password }` → creates account, starts session
+- `POST /auth/login` — `{ email, password }` → starts session
+- `POST /auth/logout` — ends session
+- `GET  /auth/me` — current user (requires session)
+
+### Account management
+- `POST   /account/change-password` — `{ currentPassword, newPassword }`
+- `POST   /account/change-email` — `{ email, password }`
+- `GET    /account/export` — **GDPR data portability**: full JSON export
+- `DELETE /account` — **GDPR erasure**: `{ password }`, hard-deletes the account
+
+## Security & data protection notes
+
+- Passwords hashed with **argon2id** only.
+- Login uses generic errors + constant-time dummy verification to resist user
+  enumeration.
+- Session cookies: `httpOnly`, `sameSite=lax`, `secure` in production, rolling
+  expiry. Session id is regenerated on login/register and password change.
+- Brute-force protection via per-IP rate limiting on credential endpoints.
+- Passwords require ≥12 characters (length-first policy, NIST 800-63B).
+- **GDPR**: users can export all their data (`/account/export`) and erase their
+  account (`DELETE /account`). Related tables should use `ON DELETE CASCADE` so
+  erasure removes everything. Only email + password hash are stored about a user.
+
+> Sessions are stored in a `sessions` table created/managed by
+> `better-sqlite3-session-store` (not by Knex migrations).
