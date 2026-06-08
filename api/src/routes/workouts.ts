@@ -1,13 +1,16 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth';
 import { ok, fail } from '../lib/respond';
-import { workoutSchema, firstError } from '../lib/validation';
+import { workoutSchema, firstError, WORKOUT_TYPES } from '../lib/validation';
 import {
   listWorkouts,
   getWorkout,
   createWorkout,
   updateWorkout,
   deleteWorkout,
+  type WorkoutType,
+  type WorkoutInput,
 } from '../db/workouts';
 
 export const workoutsRouter = Router();
@@ -21,21 +24,37 @@ function parseId(raw: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-// GET /workouts — list the current user's workouts (newest first).
+/** Map validated request body to the DB input shape. */
+function toInput(data: z.infer<typeof workoutSchema>): WorkoutInput {
+  return {
+    type: data.type,
+    date: data.date,
+    duration_s: data.duration_s ?? null,
+    notes: data.notes ?? null,
+    details: data.details,
+  };
+}
+
+// GET /workouts[?type=run] — list the user's workouts (newest first).
 workoutsRouter.get('/', (req, res) => {
-  return ok(res, listWorkouts(req.user!.id));
+  const typeParam = req.query.type;
+  let type: WorkoutType | undefined;
+  if (typeof typeParam === 'string') {
+    if (!(WORKOUT_TYPES as readonly string[]).includes(typeParam)) {
+      return fail(res, 400, 'Invalid workout type');
+    }
+    type = typeParam as WorkoutType;
+  }
+  return ok(res, listWorkouts(req.user!.id, type));
 });
 
-// POST /workouts — create a workout.
+// POST /workouts — create a workout of any type.
 workoutsRouter.post('/', (req, res) => {
   const parsed = workoutSchema.safeParse(req.body);
   if (!parsed.success) {
     return fail(res, 400, firstError(parsed.error));
   }
-  const workout = createWorkout(req.user!.id, {
-    date: parsed.data.date,
-    notes: parsed.data.notes ?? null,
-  });
+  const workout = createWorkout(req.user!.id, toInput(parsed.data));
   return ok(res, workout, 201);
 });
 
@@ -59,10 +78,7 @@ workoutsRouter.put('/:id', (req, res) => {
     return fail(res, 400, firstError(parsed.error));
   }
 
-  const workout = updateWorkout(req.user!.id, id, {
-    date: parsed.data.date,
-    notes: parsed.data.notes ?? null,
-  });
+  const workout = updateWorkout(req.user!.id, id, toInput(parsed.data));
   if (!workout) return fail(res, 404, 'Workout not found');
   return ok(res, workout);
 });

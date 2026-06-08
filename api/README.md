@@ -42,11 +42,32 @@ All responses use a `{ data, error }` envelope. Auth is cookie-session based
 - `DELETE /account` — **GDPR erasure**: `{ password }`, hard-deletes the account
 
 ### Workouts (all require a session; scoped to the current user)
-- `GET    /workouts` — list the user's workouts (newest first)
-- `POST   /workouts` — `{ date: "YYYY-MM-DD", notes? }` → create
+Workouts are **polymorphic** by `type`: a shared core (`date`, `duration_s`,
+`notes`) plus a type-specific `details` payload. Supported types: `strength`,
+`run`, `cycle`, `yoga`. Adding a new type is a new zod variant in
+`src/lib/validation.ts` — no migration, no new route.
+
+- `GET    /workouts[?type=run]` — list the user's workouts (newest first; optional type filter)
+- `POST   /workouts` — create (see shapes below)
 - `GET    /workouts/:id` — fetch one
-- `PUT    /workouts/:id` — `{ date, notes? }` → replace
+- `PUT    /workouts/:id` — replace
 - `DELETE /workouts/:id` — remove
+
+Body shapes (all take `date`, optional `duration_s`, optional `notes`):
+
+```jsonc
+// strength
+{ "type": "strength", "date": "2026-06-08", "duration_s": 3600,
+  "details": { "exercises": [ { "name": "Squat", "sets": [ { "reps": 5, "weight_kg": 100 } ] } ] } }
+
+// run / cycle (same cardio shape)
+{ "type": "cycle", "date": "2026-06-08", "duration_s": 5400,
+  "details": { "distance_km": 40.2, "elevation_m": 350 } }
+
+// yoga
+{ "type": "yoga", "date": "2026-06-08", "duration_s": 1800,
+  "details": { "style": "Vinyasa", "intensity": "moderate" } }
+```
 
 ## Security & data protection notes
 
