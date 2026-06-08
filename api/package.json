@@ -10,7 +10,8 @@
     "migrate": "knex --knexfile knexfile.ts migrate:latest",
     "migrate:make": "knex --knexfile knexfile.ts migrate:make -x ts",
     "migrate:rollback": "knex --knexfile knexfile.ts migrate:rollback",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -35,8 +36,11 @@
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/node": "^25.9.2",
+    "@types/supertest": "^7.2.0",
     "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   }
 }
