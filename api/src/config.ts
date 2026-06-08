@@ -28,6 +28,7 @@ const env = parsed.data;
 export const config = {
   nodeEnv: env.NODE_ENV,
   isProd: env.NODE_ENV === 'production',
+  isTest: env.NODE_ENV === 'test',
   port: env.PORT,
   sessionSecret: env.SESSION_SECRET,
   databasePath: env.DATABASE_PATH

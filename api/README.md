@@ -23,6 +23,16 @@ npm run dev            # start with nodemon + ts-node
 | `npm run migrate`       | Apply all pending migrations              |
 | `npm run migrate:make`  | Scaffold a new migration (`-- <name>`)    |
 | `npm run migrate:rollback` | Roll back the last migration batch     |
+| `npm test`              | Run the Vitest integration suite          |
+| `npm run test:watch`    | Run the suite in watch mode               |
+
+## Testing
+
+Integration tests live in `tests/` and exercise the real HTTP surface with
+Supertest against an isolated SQLite DB (`data/test.db`), rebuilt from the
+actual migrations before each run (see `tests/globalSetup.ts`). Auth uses a
+cookie-persisting Supertest agent; data is reset between tests. Rate limiting is
+skipped under `NODE_ENV=test`.
 
 ## Endpoints
 
