@@ -9,6 +9,7 @@ import { db } from './db';
 import { authRouter } from './routes/auth';
 import { accountRouter } from './routes/account';
 import { workoutsRouter } from './routes/workouts';
+import { foodLogsRouter } from './routes/foodLogs';
 import { ok, fail } from './lib/respond';
 
 export function createApp() {
@@ -52,6 +53,7 @@ export function createApp() {
   app.use('/auth', authRouter);
   app.use('/account', accountRouter);
   app.use('/workouts', workoutsRouter);
+  app.use('/food-logs', foodLogsRouter);
 
   // 404 fallback.
   app.use((_req, res) => {

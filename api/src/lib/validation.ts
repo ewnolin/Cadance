@@ -87,6 +87,23 @@ export const workoutSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('yoga'), ...baseFields, details: yogaDetails }),
 ]);
 
+// ---- Food logs ----
+
+// YYYY-MM-DD, reused for query params too.
+export const isoDateSchema = z.iso.date('Date must be in YYYY-MM-DD format');
+export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+
+export const foodLogSchema = z.object({
+  date: workoutDateField,
+  meal: z.enum(MEAL_TYPES),
+  name: z.string().trim().min(1).max(200),
+  calories: z.number().int().nonnegative(),
+  // Macros in grams; omitted ones default to 0 so you can log calories alone.
+  protein: z.number().nonnegative().default(0),
+  carbs: z.number().nonnegative().default(0),
+  fat: z.number().nonnegative().default(0),
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';

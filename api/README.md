@@ -69,6 +69,23 @@ Body shapes (all take `date`, optional `duration_s`, optional `notes`):
   "details": { "style": "Vinyasa", "intensity": "moderate" } }
 ```
 
+### Food logs (all require a session; scoped to the current user)
+- `GET    /food-logs[?date=YYYY-MM-DD]` — list entries (optional date filter)
+- `GET    /food-logs/summary[?date=YYYY-MM-DD]` — daily nutrition totals (defaults to today)
+- `POST   /food-logs` — create
+- `GET    /food-logs/:id` — fetch one
+- `PUT    /food-logs/:id` — replace
+- `DELETE /food-logs/:id` — remove
+
+```jsonc
+// create / replace body — meal is breakfast|lunch|dinner|snack; macros in grams (default 0)
+{ "date": "2026-06-08", "meal": "lunch", "name": "Chicken & rice",
+  "calories": 650, "protein": 45, "carbs": 70, "fat": 12 }
+
+// summary response data
+{ "date": "2026-06-08", "count": 3, "calories": 1850, "protein": 120, "carbs": 180, "fat": 55 }
+```
+
 ## Security & data protection notes
 
 - Passwords hashed with **argon2id** only.
