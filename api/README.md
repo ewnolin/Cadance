@@ -41,6 +41,13 @@ All responses use a `{ data, error }` envelope. Auth is cookie-session based
 - `GET    /account/export` — **GDPR data portability**: full JSON export
 - `DELETE /account` — **GDPR erasure**: `{ password }`, hard-deletes the account
 
+### Workouts (all require a session; scoped to the current user)
+- `GET    /workouts` — list the user's workouts (newest first)
+- `POST   /workouts` — `{ date: "YYYY-MM-DD", notes? }` → create
+- `GET    /workouts/:id` — fetch one
+- `PUT    /workouts/:id` — `{ date, notes? }` → replace
+- `DELETE /workouts/:id` — remove
+
 ## Security & data protection notes
 
 - Passwords hashed with **argon2id** only.
