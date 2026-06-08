@@ -1,0 +1,12 @@
+node_modules/
+dist/
+
+# Secrets
+.env
+
+# SQLite database files + WAL/SHM sidecars
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
