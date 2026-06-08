@@ -96,6 +96,26 @@ Body shapes (all take `date`, optional `duration_s`, optional `notes`):
 { "date": "2026-06-08", "count": 3, "calories": 1850, "protein": 120, "carbs": 180, "fat": 55 }
 ```
 
+### Dashboard (requires a session; scoped to the current user)
+- `GET /dashboard[?days=7]` — trailing-window summary, current streaks, and a
+  per-day breakdown for charts. `days` is 1–31 (default 7).
+
+```jsonc
+// response data
+{
+  "range": { "from": "2026-06-02", "to": "2026-06-08", "days": 7 },
+  "workouts": { "total": 5, "total_duration_s": 12600,
+                "by_type": { "strength": 3, "run": 1, "cycle": 1, "yoga": 0 } },
+  "nutrition": { "days_logged": 4, "total_calories": 7200,
+                 "totals": { "protein": 380, "carbs": 720, "fat": 210 },
+                 "avg_calories_per_logged_day": 1800 },
+  "streaks": { "workouts": 3, "nutrition": 2 },
+  "daily": [ { "date": "2026-06-02", "workouts": 1, "workout_duration_s": 3600, "calories": 1900 } /* ... */ ]
+}
+```
+Streaks count consecutive days ending today; today has a grace period (an
+unlogged today doesn't break the streak until the day ends).
+
 ## Security & data protection notes
 
 - Passwords hashed with **argon2id** only.
