@@ -32,6 +32,15 @@ export const deleteAccountSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Workout date is a calendar date (YYYY-MM-DD), not a timestamp.
+const workoutDateField = z.iso.date('Date must be in YYYY-MM-DD format');
+const notesField = z.string().trim().max(2000).optional();
+
+export const workoutSchema = z.object({
+  date: workoutDateField,
+  notes: notesField,
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';

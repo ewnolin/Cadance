@@ -18,6 +18,7 @@ import {
   deleteUser,
   toPublicUser,
 } from '../db/users';
+import { listWorkouts } from '../db/workouts';
 
 export const accountRouter = Router();
 
@@ -85,8 +86,8 @@ accountRouter.get('/export', (req, res) => {
   const exportPayload = {
     exported_at: new Date().toISOString(),
     account: toPublicUser(user),
-    // Populate these as the corresponding tables are added (workouts, runs, food).
-    workouts: [] as unknown[],
+    workouts: listWorkouts(user.id),
+    // Populate these as the corresponding tables are added (runs, food).
     runs: [] as unknown[],
     food_logs: [] as unknown[],
   };
