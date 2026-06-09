@@ -18,6 +18,7 @@ import {
 } from "../lib/api";
 import { todayISO, titleCase } from "../lib/format";
 import { colors } from "../lib/theme";
+import { loadDraft, saveDraft, clearDraft } from "../lib/draft";
 import { Button, Card, EmptyState, TextField } from "../components/ui";
 import { ExercisePicker } from "../components/ExercisePicker";
 
@@ -51,44 +52,75 @@ export default function Session() {
   const params = useLocalSearchParams<{ templateId?: string }>();
   const templateId = params.templateId ? Number(params.templateId) : null;
 
+  // One draft per source, so a freshly copied/started library workout (new id)
+  // never resumes a stale draft from a different session.
+  const draftKey = `session:${templateId ?? "empty"}`;
+
   const [title, setTitle] = useState("Quick session");
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
   const [feel, setFeel] = useState<WorkoutFeel | null>(null);
-  const [loading, setLoading] = useState(templateId != null);
+  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
 
-  // Seed from a template once (if one was chosen). A one-shot load — we don't
-  // want a focus-refresh clobbering in-progress edits.
+  // Hydrate once on mount: resume a saved draft if one exists, else seed from
+  // the chosen template (or start empty). A one-shot load so a focus-refresh
+  // can't clobber in-progress edits.
   useEffect(() => {
-    if (templateId == null) return;
     let active = true;
-    api.templates
-      .get(templateId)
-      .then((t) => {
-        if (!active) return;
-        setTitle(t.name);
-        setExercises(
-          t.exercises.map((ex) => ({
-            key: nextKey(),
-            name: ex.name,
-            catalogId: ex.catalog_id,
-            targetReps: ex.target_reps,
-            sets: Array.from({ length: Math.max(1, ex.target_sets ?? 1) }, emptySet),
-          }))
-        );
-      })
-      .catch(
-        (e) =>
-          active &&
-          setError(e instanceof ApiError ? e.message : "Couldn't load template.")
-      )
-      .finally(() => active && setLoading(false));
+    (async () => {
+      const draft = await loadDraft<SessionExercise>(draftKey);
+      if (!active) return;
+      if (draft) {
+        setTitle(draft.title);
+        setExercises(draft.exercises);
+        setFeel((draft.feel as WorkoutFeel | null) ?? null);
+      } else if (templateId != null) {
+        try {
+          const t = await api.templates.get(templateId);
+          if (!active) return;
+          setTitle(t.name);
+          setExercises(
+            t.exercises.map((ex) => ({
+              key: nextKey(),
+              name: ex.name,
+              catalogId: ex.catalog_id,
+              targetReps: ex.target_reps,
+              sets: Array.from({ length: Math.max(1, ex.target_sets ?? 1) }, emptySet),
+            }))
+          );
+        } catch (e) {
+          if (active)
+            setError(
+              e instanceof ApiError ? e.message : "Couldn't load template."
+            );
+        }
+      }
+      if (active) {
+        setHydrated(true);
+        setLoading(false);
+      }
+    })();
     return () => {
       active = false;
     };
-  }, [templateId]);
+  }, [draftKey, templateId]);
+
+  // Persist the draft as it changes (debounced). An empty session leaves no
+  // draft behind.
+  useEffect(() => {
+    if (!hydrated) return;
+    const handle = setTimeout(() => {
+      if (exercises.length === 0 && !feel) {
+        clearDraft(draftKey);
+      } else {
+        saveDraft(draftKey, { title, exercises, feel });
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [hydrated, draftKey, title, exercises, feel]);
 
   function patchSet(ei: number, si: number, patch: Partial<SessionSet>) {
     setExercises((prev) =>
@@ -128,7 +160,10 @@ export default function Session() {
   }
 
   function discard() {
-    const go = () => router.back();
+    const go = () => {
+      clearDraft(draftKey);
+      router.back();
+    };
     if (exercises.length === 0) return go();
     if (Platform.OS === "web") return go();
     Alert.alert("Discard session?", "Logged sets won't be saved.", [
@@ -171,6 +206,7 @@ export default function Session() {
         feel: feel ?? undefined,
         exercises: built,
       });
+      await clearDraft(draftKey);
       router.back();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't save the session.");
@@ -196,7 +232,7 @@ export default function Session() {
       </View>
 
       {loading ? (
-        <EmptyState title="Loading template…" />
+        <EmptyState title="Loading…" />
       ) : (
         <ScrollView
           contentContainerClassName="px-5 pb-10 gap-3"
