@@ -195,6 +195,14 @@ export interface CatalogFilters {
   category?: string;
 }
 
+/** One past occurrence of an exercise, carrying its workout's date. */
+export interface ExerciseHistoryEntry {
+  id: number;
+  name: string;
+  date: string;
+  sets: ExerciseSet[];
+}
+
 // ---- Workout templates ----
 
 export interface TemplateExercise {
@@ -365,6 +373,11 @@ export const api = {
     remove: (id: number) => http.del<{ deleted: boolean }>(`/workouts/${id}`),
   },
   exercises: {
+    names: () => http.get<string[]>("/exercises/names"),
+    history: (name: string) =>
+      http.get<ExerciseHistoryEntry[]>(
+        `/exercises?name=${encodeURIComponent(name)}`
+      ),
     catalog: (filters: CatalogFilters = {}) => {
       const qs = new URLSearchParams();
       if (filters.muscle) qs.set("muscle", filters.muscle);
