@@ -3,6 +3,7 @@ import { db } from './index';
 export interface ExerciseSet {
   reps: number;
   weight_kg: number;
+  rpe?: number | null; // Rate of Perceived Exertion (1–10), when recorded
 }
 
 export interface ExerciseInput {

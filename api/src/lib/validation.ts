@@ -39,17 +39,29 @@ const workoutDateField = z.iso.date('Date must be in YYYY-MM-DD format');
 const notesField = z.string().trim().max(2000).optional();
 const durationField = z.number().int().positive().nullish();
 
+// How a session subjectively went / how hard it was — a single, type-agnostic
+// rating (strength, cardio and yoga all use it). Provisional vocabulary; the
+// "strong/spent" axis some lifters expect differs from cardio intensity, so this
+// may grow later.
+export const WORKOUT_FEELS = ['easy', 'moderate', 'hard', 'max'] as const;
+export type WorkoutFeel = (typeof WORKOUT_FEELS)[number];
+const feelField = z.enum(WORKOUT_FEELS).nullish();
+
 // Fields shared by every workout type.
 const baseFields = {
   date: workoutDateField,
   duration_s: durationField,
   notes: notesField,
+  feel: feelField,
 };
 
 // Strength workouts carry exercises (stored as first-class rows, not in details).
 const setSchema = z.object({
   reps: z.number().int().nonnegative(),
   weight_kg: z.number().nonnegative(),
+  // Rate of Perceived Exertion, 1–10 in half steps. Optional — logged per set
+  // when the lifter records it, omitted otherwise.
+  rpe: z.number().min(1).max(10).multipleOf(0.5).nullish(),
 });
 const exerciseSchema = z.object({
   name: z.string().trim().min(1).max(120),
