@@ -95,4 +95,57 @@ describe('exercises', () => {
     expect(bobEx.body.data).toHaveLength(0);
     await request(app).get('/exercises').expect(401);
   });
+
+  it('merges catalog-linked exercises logged under different names', async () => {
+    const agent = await registerAgent('ealias@example.com');
+    const cat = await agent
+      .get('/exercises/catalog?q=Barbell%20Bench%20Press')
+      .expect(200);
+    const catalogId = cat.body.data[0].id as number;
+
+    // Same catalog entry, two different display labels.
+    await agent
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: '2026-06-01',
+        exercises: [{ name: 'Bench', catalog_id: catalogId, sets: [{ reps: 5, weight_kg: 80 }] }],
+      })
+      .expect(201);
+    await agent
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: '2026-06-08',
+        exercises: [{ name: 'BB Bench Press', catalog_id: catalogId, sets: [{ reps: 5, weight_kg: 85 }] }],
+      })
+      .expect(201);
+
+    // Both stored under the canonical catalog name; the aliases are gone.
+    const names = await agent.get('/exercises/names').expect(200);
+    expect(names.body.data).toContain('Barbell Bench Press');
+    expect(names.body.data).not.toContain('Bench');
+    expect(names.body.data).not.toContain('BB Bench Press');
+
+    // History for the canonical name returns both sessions.
+    const hist = await agent
+      .get('/exercises?name=Barbell%20Bench%20Press')
+      .expect(200);
+    expect(hist.body.data).toHaveLength(2);
+  });
+
+  it('collapses case-variant names in the autocomplete list', async () => {
+    const agent = await registerAgent('ecase@example.com');
+    await agent
+      .post('/workouts')
+      .send({ type: 'strength', date: '2026-06-01', exercises: [{ name: 'Squat', sets: [{ reps: 5, weight_kg: 100 }] }] })
+      .expect(201);
+    await agent
+      .post('/workouts')
+      .send({ type: 'strength', date: '2026-06-08', exercises: [{ name: 'squat', sets: [{ reps: 5, weight_kg: 105 }] }] })
+      .expect(201);
+
+    const names = await agent.get('/exercises/names').expect(200);
+    expect(names.body.data.filter((n: string) => /^squat$/i.test(n))).toHaveLength(1);
+  });
 });

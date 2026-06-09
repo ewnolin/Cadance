@@ -75,6 +75,8 @@ export function buildStats(userId: number): StatsData {
   const rows = db
     .prepare('SELECT name, sets FROM exercises WHERE user_id = ?')
     .all(userId) as { name: string; sets: string | null }[];
+  // Key case-insensitively so name spellings of the same lift merge (catalog
+  // links are already normalized to one name at write time).
   const best = new Map<string, ExercisePR>();
   for (const row of rows) {
     if (!row.sets) continue;
@@ -84,11 +86,12 @@ export function buildStats(userId: number): StatsData {
     } catch {
       continue;
     }
+    const key = row.name.toLowerCase();
     for (const s of sets) {
       if (!(s.weight_kg > 0)) continue;
-      const prev = best.get(row.name);
+      const prev = best.get(key);
       if (!prev || s.weight_kg > prev.weight) {
-        best.set(row.name, {
+        best.set(key, {
           name: row.name,
           weight: s.weight_kg,
           reps: s.reps,

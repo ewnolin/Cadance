@@ -1,4 +1,5 @@
 import { db } from './index';
+import { getCatalogEntriesByIds } from './exerciseCatalog';
 
 export interface ExerciseSet {
   reps: number;
@@ -62,16 +63,28 @@ export function insertExercises(
   exercises: ExerciseInput[]
 ): void {
   const now = new Date().toISOString();
+  // Alias merging: when an exercise is linked to the catalog, store the catalog
+  // entry's canonical name so the same lift logged under different spellings (or
+  // a template's custom label) groups together in history, PRs and recommendations.
+  const catalog = getCatalogEntriesByIds(
+    exercises
+      .map((e) => e.catalog_id)
+      .filter((id): id is number => id != null)
+  );
   const stmt = db.prepare(
     `INSERT INTO exercises (workout_id, user_id, catalog_id, name, position, sets, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   exercises.forEach((ex, i) => {
+    const canonicalName =
+      ex.catalog_id != null
+        ? catalog.get(ex.catalog_id)?.name ?? ex.name
+        : ex.name;
     stmt.run(
       workoutId,
       userId,
       ex.catalog_id ?? null,
-      ex.name,
+      canonicalName,
       i,
       JSON.stringify(ex.sets),
       now,
@@ -111,12 +124,14 @@ export function listExercisesByUser(
   return rows.map((r) => ({ ...mapRow(r), date: r.date }));
 }
 
-/** Distinct exercise names the user has logged (for autocomplete). */
+/** Distinct exercise names the user has logged (for autocomplete). Case
+ * variants of the same name collapse to a single representative. */
 export function distinctExerciseNames(userId: number): string[] {
   return (
     db
       .prepare(
-        'SELECT DISTINCT name FROM exercises WHERE user_id = ? ORDER BY name COLLATE NOCASE'
+        `SELECT name FROM exercises WHERE user_id = ?
+         GROUP BY name COLLATE NOCASE ORDER BY name COLLATE NOCASE`
       )
       .all(userId) as { name: string }[]
   ).map((r) => r.name);
