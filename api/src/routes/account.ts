@@ -20,6 +20,8 @@ import {
 } from '../db/users';
 import { listWorkouts } from '../db/workouts';
 import { listFoodLogs } from '../db/foodLogs';
+import { listTemplates } from '../db/workoutTemplates';
+import { listCatalog } from '../db/exerciseCatalog';
 
 export const accountRouter = Router();
 
@@ -89,6 +91,11 @@ accountRouter.get('/export', (req, res) => {
     account: toPublicUser(user),
     workouts: listWorkouts(user.id),
     food_logs: listFoodLogs(user.id),
+    workout_templates: listTemplates(user.id),
+    // Only the user's own custom catalog entries — public seeds aren't their data.
+    custom_exercises: listCatalog(user.id).filter(
+      (e) => e.created_by === user.id
+    ),
   };
 
   res.setHeader(
