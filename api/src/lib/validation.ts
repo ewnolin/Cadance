@@ -46,25 +46,18 @@ const baseFields = {
   notes: notesField,
 };
 
-// Type-specific detail payloads. Adding a new activity is a matter of adding a
-// details schema + a variant below — no migration, no new route.
-const strengthDetails = z.object({
-  exercises: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(120),
-        sets: z
-          .array(
-            z.object({
-              reps: z.number().int().nonnegative(),
-              weight_kg: z.number().nonnegative(),
-            })
-          )
-          .max(50),
-      })
-    )
-    .max(50),
+// Strength workouts carry exercises (stored as first-class rows, not in details).
+const setSchema = z.object({
+  reps: z.number().int().nonnegative(),
+  weight_kg: z.number().nonnegative(),
 });
+const exerciseSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  sets: z.array(setSchema).max(50),
+});
+
+// Type-specific detail payloads for non-strength types. Adding a new activity is
+// a matter of adding a details schema + a variant below — no migration, no new route.
 
 // run + cycle share the same cardio shape.
 const cardioDetails = z.object({
@@ -81,7 +74,7 @@ const yogaDetails = z.object({
 export const WORKOUT_TYPES = ['strength', 'run', 'cycle', 'yoga'] as const;
 
 export const workoutSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('strength'), ...baseFields, details: strengthDetails }),
+  z.object({ type: z.literal('strength'), ...baseFields, exercises: z.array(exerciseSchema).max(50) }),
   z.object({ type: z.literal('run'), ...baseFields, details: cardioDetails }),
   z.object({ type: z.literal('cycle'), ...baseFields, details: cardioDetails }),
   z.object({ type: z.literal('yoga'), ...baseFields, details: yogaDetails }),

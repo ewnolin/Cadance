@@ -26,13 +26,17 @@ function parseId(raw: string): number | null {
 
 /** Map validated request body to the DB input shape. */
 function toInput(data: z.infer<typeof workoutSchema>): WorkoutInput {
-  return {
+  const base = {
     type: data.type,
     date: data.date,
     duration_s: data.duration_s ?? null,
     notes: data.notes ?? null,
-    details: data.details,
   };
+  if (data.type === 'strength') {
+    // Exercises are stored as rows; no details JSON for strength.
+    return { ...base, details: null, exercises: data.exercises };
+  }
+  return { ...base, details: data.details };
 }
 
 // GET /workouts[?type=run] — list the user's workouts (newest first).

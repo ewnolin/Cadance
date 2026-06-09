@@ -35,7 +35,7 @@ describe('dashboard', () => {
     // Workouts: strength today + run yesterday (consecutive => streak 2).
     await agent
       .post('/workouts')
-      .send({ type: 'strength', date: today, duration_s: 3600, details: { exercises: [] } })
+      .send({ type: 'strength', date: today, duration_s: 3600, exercises: [] })
       .expect(201);
     await agent
       .post('/workouts')
