@@ -17,6 +17,7 @@ import { libraryRouter } from './routes/library';
 import { profileRouter } from './routes/profile';
 import { recommendationsRouter } from './routes/recommendations';
 import { bodyWeightsRouter } from './routes/bodyWeights';
+import { statsRouter } from './routes/stats';
 import { ok, fail } from './lib/respond';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -70,6 +71,7 @@ export function createApp() {
   app.use('/profile', profileRouter);
   app.use('/recommendations', recommendationsRouter);
   app.use('/body-weights', bodyWeightsRouter);
+  app.use('/stats', statsRouter);
 
   // 404 fallback.
   app.use((_req, res) => {
