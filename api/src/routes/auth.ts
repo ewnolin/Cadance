@@ -15,6 +15,7 @@ import {
   getUserById,
   toPublicUser,
 } from '../db/users';
+import { createDefaultProfile } from '../db/profiles';
 
 export const authRouter = Router();
 
@@ -46,6 +47,9 @@ authRouter.post('/register', authLimiter, async (req, res) => {
     // UNIQUE race — treat as conflict.
     return fail(res, 409, 'That email is already registered.');
   }
+
+  // Give every new account a default public profile for content attribution.
+  createDefaultProfile(id);
 
   await regenerateSession(req);
   req.session.userId = id;

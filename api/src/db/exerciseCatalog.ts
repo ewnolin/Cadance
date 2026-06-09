@@ -109,6 +109,28 @@ export function getCatalogEntry(
   return row ? mapRow(row) : undefined;
 }
 
+/**
+ * Look up catalog entries by id, unscoped, keyed by id. Used internally to
+ * resolve the muscle groups a (possibly shared) template trains — the author
+ * implicitly shares its exercises' muscle tags by publishing it.
+ */
+export function getCatalogEntriesByIds(
+  ids: number[]
+): Map<number, CatalogEntry> {
+  const map = new Map<number, CatalogEntry>();
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return map;
+  const placeholders = unique.map(() => '?').join(',');
+  const rows = db
+    .prepare(`SELECT * FROM exercise_catalog WHERE id IN (${placeholders})`)
+    .all(...unique) as CatalogDbRow[];
+  for (const row of rows) {
+    const entry = mapRow(row);
+    map.set(entry.id, entry);
+  }
+  return map;
+}
+
 /** Create a custom (private) catalog entry owned by the user. */
 export function createCatalogEntry(
   userId: number,

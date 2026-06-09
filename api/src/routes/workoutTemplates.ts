@@ -9,6 +9,7 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  setTemplateVisibility,
   type WorkoutTemplateInput,
 } from '../db/workoutTemplates';
 import { getCatalogEntry } from '../db/exerciseCatalog';
@@ -91,6 +92,26 @@ workoutTemplatesRouter.put('/:id', (req, res) => {
     return fail(res, 400, 'Unknown catalog exercise');
   }
   const template = updateTemplate(req.user!.id, id, input);
+  if (!template) return fail(res, 404, 'Template not found');
+  return ok(res, template);
+});
+
+// POST /workout-templates/:id/publish — share this template to the public library.
+workoutTemplatesRouter.post('/:id/publish', (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return fail(res, 400, 'Invalid template id');
+
+  const template = setTemplateVisibility(req.user!.id, id, true);
+  if (!template) return fail(res, 404, 'Template not found');
+  return ok(res, template);
+});
+
+// POST /workout-templates/:id/unpublish — remove it from the public library.
+workoutTemplatesRouter.post('/:id/unpublish', (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return fail(res, 400, 'Invalid template id');
+
+  const template = setTemplateVisibility(req.user!.id, id, false);
   if (!template) return fail(res, 404, 'Template not found');
   return ok(res, template);
 });

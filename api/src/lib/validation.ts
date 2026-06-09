@@ -184,6 +184,13 @@ export const workoutTemplateSchema = z.object({
   exercises: z.array(templateExerciseSchema).max(50).default([]),
 });
 
+// ---- Public profile ----
+
+export const profileSchema = z.object({
+  display_name: z.string().trim().min(1, 'Display name is required').max(50),
+  bio: z.string().trim().max(300).nullish(),
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';

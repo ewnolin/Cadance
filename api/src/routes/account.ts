@@ -22,6 +22,7 @@ import { listWorkouts } from '../db/workouts';
 import { listFoodLogs } from '../db/foodLogs';
 import { listTemplates } from '../db/workoutTemplates';
 import { listCatalog } from '../db/exerciseCatalog';
+import { getOrCreateProfile } from '../db/profiles';
 
 export const accountRouter = Router();
 
@@ -89,6 +90,7 @@ accountRouter.get('/export', (req, res) => {
   const exportPayload = {
     exported_at: new Date().toISOString(),
     account: toPublicUser(user),
+    profile: getOrCreateProfile(user.id),
     workouts: listWorkouts(user.id),
     food_logs: listFoodLogs(user.id),
     workout_templates: listTemplates(user.id),
