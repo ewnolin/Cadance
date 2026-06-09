@@ -95,9 +95,30 @@ export type WorkoutType = (typeof WORKOUT_TYPES)[number];
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
+export const WORKOUT_FEELS = ["easy", "moderate", "hard", "max"] as const;
+export type WorkoutFeel = (typeof WORKOUT_FEELS)[number];
+
+export const MUSCLE_GROUPS = [
+  "chest",
+  "back",
+  "lats",
+  "traps",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "forearms",
+  "quads",
+  "hamstrings",
+  "glutes",
+  "calves",
+  "core",
+] as const;
+export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+
 export interface ExerciseSet {
   reps: number;
   weight_kg: number;
+  rpe?: number | null;
 }
 export interface Exercise {
   id: number;
@@ -123,35 +144,76 @@ export interface Workout {
   date: string;
   duration_s: number | null;
   notes: string | null;
+  feel: WorkoutFeel | null;
   details?: CardioDetails | YogaDetails | null;
   exercises?: Exercise[];
   created_at: string;
   updated_at: string;
 }
 
+/** Fields every workout type accepts. */
+interface WorkoutBaseInput {
+  date: string;
+  duration_s?: number | null;
+  notes?: string;
+  feel?: WorkoutFeel | null;
+}
+
 /** Discriminated input that matches the API's workoutSchema. */
 export type WorkoutInput =
-  | {
+  | (WorkoutBaseInput & {
       type: "strength";
-      date: string;
-      duration_s?: number | null;
-      notes?: string;
       exercises: { name: string; sets: ExerciseSet[] }[];
-    }
-  | {
-      type: "run" | "cycle";
-      date: string;
-      duration_s?: number | null;
-      notes?: string;
-      details: CardioDetails;
-    }
-  | {
-      type: "yoga";
-      date: string;
-      duration_s?: number | null;
-      notes?: string;
-      details: YogaDetails;
-    };
+    })
+  | (WorkoutBaseInput & { type: "run" | "cycle"; details: CardioDetails })
+  | (WorkoutBaseInput & { type: "yoga"; details: YogaDetails });
+
+// ---- Exercise catalog (muscle-group taxonomy) ----
+
+export interface CatalogEntry {
+  id: number;
+  created_by: number | null;
+  name: string;
+  category: string;
+  equipment: string;
+  primary_muscles: MuscleGroup[];
+  secondary_muscles: MuscleGroup[];
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CatalogFilters {
+  muscle?: MuscleGroup;
+  q?: string;
+  equipment?: string;
+  category?: string;
+}
+
+// ---- Workout templates ----
+
+export interface TemplateExercise {
+  id: number;
+  template_id: number;
+  user_id: number;
+  catalog_id: number | null;
+  name: string;
+  position: number;
+  target_sets: number | null;
+  target_reps: string | null;
+  notes: string | null;
+}
+
+export interface WorkoutTemplate {
+  id: number;
+  user_id: number;
+  name: string;
+  notes: string | null;
+  is_public: boolean;
+  exercises: TemplateExercise[];
+  created_at: string;
+  updated_at: string;
+}
 
 export interface FoodLog {
   id: number;
@@ -224,6 +286,21 @@ export const api = {
       http.get<Workout[]>(`/workouts${type ? `?type=${type}` : ""}`),
     create: (input: WorkoutInput) => http.post<Workout>("/workouts", input),
     remove: (id: number) => http.del<{ deleted: boolean }>(`/workouts/${id}`),
+  },
+  exercises: {
+    catalog: (filters: CatalogFilters = {}) => {
+      const qs = new URLSearchParams();
+      if (filters.muscle) qs.set("muscle", filters.muscle);
+      if (filters.q) qs.set("q", filters.q);
+      if (filters.equipment) qs.set("equipment", filters.equipment);
+      if (filters.category) qs.set("category", filters.category);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return http.get<CatalogEntry[]>(`/exercises/catalog${suffix}`);
+    },
+  },
+  templates: {
+    list: () => http.get<WorkoutTemplate[]>("/workout-templates"),
+    get: (id: number) => http.get<WorkoutTemplate>(`/workout-templates/${id}`),
   },
   foodLogs: {
     list: (date?: string) =>

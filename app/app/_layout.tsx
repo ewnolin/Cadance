@@ -35,6 +35,7 @@ function RootNavigator() {
     >
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="session" options={{ presentation: "modal" }} />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="sign-in" />
