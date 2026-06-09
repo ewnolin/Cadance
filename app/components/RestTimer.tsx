@@ -7,7 +7,10 @@ import {
 import { Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { colors } from "../lib/theme";
+
+const CHIME = require("../assets/rest-done.wav");
 
 export interface RestTimerHandle {
   /** Begin (or restart) the rest countdown — called after a set is logged. */
@@ -32,6 +35,12 @@ export const RestTimer = forwardRef<RestTimerHandle, { defaultTarget?: number }>
     const [startedAt, setStartedAt] = useState<number | null>(null);
     const [target, setTarget] = useState<number>(defaultTarget);
     const [now, setNow] = useState(Date.now());
+    const player = useAudioPlayer(CHIME);
+
+    // Let the chime play even when the device is on silent.
+    useEffect(() => {
+      setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    }, []);
 
     useImperativeHandle(
       ref,
@@ -56,14 +65,23 @@ export const RestTimer = forwardRef<RestTimerHandle, { defaultTarget?: number }>
     const remaining = target - elapsed;
     const done = running && remaining <= 0;
 
-    // Buzz once when the rest period elapses (native only; web has no haptics).
+    // Alert once when the rest period elapses: a chime everywhere, plus a haptic
+    // buzz on native (web has no haptics).
     useEffect(() => {
-      if (!done || Platform.OS === "web") return;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
-        () => {
-          // Haptics unavailable on this device — ignore.
-        }
-      );
+      if (!done) return;
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        ).catch(() => {});
+      }
+      try {
+        player.seekTo(0);
+        player.play();
+      } catch {
+        // Audio unavailable on this device — ignore.
+      }
+      // player is a stable instance from the hook; we only want to fire on `done`.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [done]);
 
     const display = running ? fmt(Math.max(remaining, -3599)) : fmt(target);
