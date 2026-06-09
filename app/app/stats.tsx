@@ -1,0 +1,221 @@
+import { useMemo } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { api, type Workout } from "../lib/api";
+import { useApiData } from "../lib/useApi";
+import { addDays, titleCase, todayISO } from "../lib/format";
+import { colors } from "../lib/theme";
+import { Card, EmptyState, StatTile } from "../components/ui";
+
+/** Monday-anchored start of the ISO week containing `iso` (YYYY-MM-DD). */
+function weekStart(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  const back = (d.getDay() + 6) % 7; // 0 = Monday
+  return addDays(iso, -back);
+}
+
+interface PR {
+  name: string;
+  weight: number;
+  reps: number;
+}
+
+export default function StatsScreen() {
+  const router = useRouter();
+  const recs = useApiData(() => api.recommendations.get(7), []);
+  const workouts = useApiData(() => api.workouts.list(), []);
+
+  const stats = useMemo(() => computeStats(workouts.data ?? []), [workouts.data]);
+  const rec = recs.data;
+  const muscleMax = rec
+    ? Math.max(rec.target_sets_per_muscle, ...Object.values(rec.muscle_volume))
+    : 0;
+  const muscleRows = rec
+    ? Object.entries(rec.muscle_volume)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+    : [];
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#0B0F14]" edges={["top"]}>
+      <View className="flex-row items-center justify-between px-5 pb-2 pt-2">
+        <Text className="text-3xl font-extrabold text-[#E7ECF2]">Stats</Text>
+        <Pressable onPress={() => router.back()} className="p-2">
+          <Ionicons name="close" size={24} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      {workouts.initialLoading ? (
+        <EmptyState title="Crunching your numbers…" />
+      ) : workouts.error ? (
+        <EmptyState title="Couldn't load stats" subtitle={workouts.error} />
+      ) : (
+        <ScrollView
+          contentContainerClassName="px-5 pb-10 gap-3"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Headline */}
+          <View className="flex-row gap-3">
+            <StatTile label="Workouts" value={stats.totalWorkouts} hint="all time" accent />
+            <StatTile label="Sets" value={stats.setsThisWeek} hint="this week" />
+          </View>
+
+          {/* Weekly activity */}
+          <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
+            Workouts per week
+          </Text>
+          <Card>
+            <WeeklyBars weeks={stats.weeks} />
+          </Card>
+
+          {/* Volume per muscle group */}
+          <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
+            Volume per muscle · this week
+          </Text>
+          <Card className="gap-3">
+            {muscleRows.length === 0 ? (
+              <Text className="text-sm text-[#8A97A6]">
+                Log a strength session to see muscle volume.
+              </Text>
+            ) : (
+              <>
+                {muscleRows.map(([muscle, sets]) => (
+                  <View key={muscle}>
+                    <View className="mb-1 flex-row justify-between">
+                      <Text className="text-sm text-[#E7ECF2]">{titleCase(muscle)}</Text>
+                      <Text className="text-sm text-[#8A97A6]">{sets} sets</Text>
+                    </View>
+                    <View className="h-2 overflow-hidden rounded-full bg-[#22241D]">
+                      <View
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round((sets / Math.max(1, muscleMax)) * 100)}%`,
+                          backgroundColor: colors.accent,
+                        }}
+                      />
+                    </View>
+                  </View>
+                ))}
+                {rec ? (
+                  <Text className="text-xs text-[#6B6F62]">
+                    Target ~{rec.target_sets_per_muscle} sets / muscle / week.
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </Card>
+
+          {/* Personal records */}
+          <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
+            Personal records
+          </Text>
+          {stats.prs.length === 0 ? (
+            <Card>
+              <Text className="text-sm text-[#8A97A6]">
+                Heaviest sets show up here once you've logged some lifts.
+              </Text>
+            </Card>
+          ) : (
+            <Card>
+              {stats.prs.map((pr, i) => (
+                <View
+                  key={pr.name}
+                  className={`flex-row items-center justify-between py-2.5 ${
+                    i < stats.prs.length - 1 ? "border-b border-[#232B36]" : ""
+                  }`}
+                >
+                  <Text className="flex-1 pr-2 text-base text-[#E7ECF2]">{pr.name}</Text>
+                  <Text className="text-base font-semibold text-[#E7ECF2]">
+                    {pr.weight} kg
+                    <Text className="text-sm font-normal text-[#8A97A6]">
+                      {" "}
+                      × {pr.reps}
+                    </Text>
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          )}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+interface ComputedStats {
+  totalWorkouts: number;
+  setsThisWeek: number;
+  weeks: { label: string; count: number }[];
+  prs: PR[];
+}
+
+function computeStats(list: Workout[]): ComputedStats {
+  const thisWeekStart = weekStart(todayISO());
+
+  // Six week buckets ending with the current week.
+  const weekAnchors: string[] = [];
+  for (let i = 5; i >= 0; i--) weekAnchors.push(addDays(thisWeekStart, -i * 7));
+  const counts = new Map(weekAnchors.map((a) => [a, 0]));
+
+  let setsThisWeek = 0;
+  const best = new Map<string, PR>();
+
+  for (const w of list) {
+    const ws = weekStart(w.date);
+    if (counts.has(ws)) counts.set(ws, counts.get(ws)! + 1);
+
+    if (w.type !== "strength" || !w.exercises) continue;
+    const inThisWeek = w.date >= thisWeekStart;
+    for (const ex of w.exercises) {
+      if (inThisWeek) setsThisWeek += ex.sets.length;
+      for (const s of ex.sets) {
+        const prev = best.get(ex.name);
+        if (s.weight_kg > 0 && (!prev || s.weight_kg > prev.weight)) {
+          best.set(ex.name, { name: ex.name, weight: s.weight_kg, reps: s.reps });
+        }
+      }
+    }
+  }
+
+  const weeks = weekAnchors.map((a) => ({
+    label: new Date(a + "T00:00:00").toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    }),
+    count: counts.get(a) ?? 0,
+  }));
+
+  const prs = [...best.values()].sort((a, b) => b.weight - a.weight).slice(0, 8);
+
+  return { totalWorkouts: list.length, setsThisWeek, weeks, prs };
+}
+
+function WeeklyBars({ weeks }: { weeks: { label: string; count: number }[] }) {
+  const max = Math.max(1, ...weeks.map((w) => w.count));
+  return (
+    <View className="mt-1 flex-row items-end justify-between gap-2">
+      {weeks.map((w, i) => {
+        const isCurrent = i === weeks.length - 1;
+        return (
+          <View key={w.label} className="flex-1 items-center gap-1.5">
+            <Text className="text-[10px] font-semibold text-[#8A97A6]">
+              {w.count || ""}
+            </Text>
+            <View className="h-24 w-full justify-end">
+              <View
+                className="w-full rounded-md"
+                style={{
+                  height: `${Math.max(w.count > 0 ? 8 : 2, Math.round((w.count / max) * 100))}%`,
+                  backgroundColor: isCurrent ? colors.accent : colors.border,
+                }}
+              />
+            </View>
+            <Text className="text-[10px] text-[#6B6F62]">{w.label}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}

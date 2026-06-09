@@ -34,20 +34,31 @@ export default function Dashboard() {
           <Text className="text-3xl font-extrabold text-[#E7ECF2]">Today</Text>
         </View>
 
-        {/* Train next — weak-area recommendations */}
-        <Pressable onPress={() => router.push("/recommendations")} className="mt-4">
-          <Card className="flex-row items-center justify-between">
-            <View className="flex-1 pr-3">
-              <Text className="text-base font-semibold text-[#E7ECF2]">
+        {/* Quick links */}
+        <View className="mt-4 flex-row gap-3">
+          <Pressable onPress={() => router.push("/recommendations")} className="flex-1">
+            <Card>
+              <Ionicons name="compass" size={22} color={colors.accent} />
+              <Text className="mt-2 text-base font-semibold text-[#E7ECF2]">
                 Train next
               </Text>
               <Text className="mt-0.5 text-xs text-[#8A97A6]">
-                See your under-trained muscles and suggested workouts.
+                Weak areas & suggestions
               </Text>
-            </View>
-            <Ionicons name="compass" size={22} color={colors.accent} />
-          </Card>
-        </Pressable>
+            </Card>
+          </Pressable>
+          <Pressable onPress={() => router.push("/stats")} className="flex-1">
+            <Card>
+              <Ionicons name="stats-chart" size={22} color={colors.accent} />
+              <Text className="mt-2 text-base font-semibold text-[#E7ECF2]">
+                Stats
+              </Text>
+              <Text className="mt-0.5 text-xs text-[#8A97A6]">
+                Volume, PRs & trends
+              </Text>
+            </Card>
+          </Pressable>
+        </View>
 
         {initialLoading ? (
           <EmptyState title="Loading your week…" />
