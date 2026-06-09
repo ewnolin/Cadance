@@ -70,6 +70,26 @@ describe('recommendations', () => {
     expect(total).toBe(0);
   });
 
+  it('credits volume via catalog_id even when the logged name is custom', async () => {
+    const agent = await registerAgent('rcat@example.com');
+    const benchId = await catalogId(agent, 'Barbell Bench Press'); // chest primary
+
+    // Logged under a name that matches no catalog entry, but linked by id.
+    const sets = Array.from({ length: 4 }, () => ({ reps: 8, weight_kg: 60 }));
+    await agent
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: today,
+        exercises: [{ name: 'My Pet Bench Variation', catalog_id: benchId, sets }],
+      })
+      .expect(201);
+
+    const res = await agent.get('/recommendations').expect(200);
+    expect(res.body.data.muscle_volume.chest).toBe(4); // credited via the link
+    expect(res.body.data.recently_trained).toContain('chest');
+  });
+
   it('suggests public templates that train your weak areas, best first', async () => {
     const author = await registerAgent('rauthor@example.com');
     const rowId = await catalogId(author, 'Barbell Row'); // back

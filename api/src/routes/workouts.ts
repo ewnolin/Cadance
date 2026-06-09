@@ -12,6 +12,7 @@ import {
   type WorkoutType,
   type WorkoutInput,
 } from '../db/workouts';
+import { getCatalogEntry } from '../db/exerciseCatalog';
 
 export const workoutsRouter = Router();
 
@@ -35,9 +36,30 @@ function toInput(data: z.infer<typeof workoutSchema>): WorkoutInput {
   };
   if (data.type === 'strength') {
     // Exercises are stored as rows; no details JSON for strength.
-    return { ...base, details: null, exercises: data.exercises };
+    return {
+      ...base,
+      details: null,
+      exercises: data.exercises.map((e) => ({
+        name: e.name,
+        catalog_id: e.catalog_id ?? null,
+        sets: e.sets,
+      })),
+    };
   }
   return { ...base, details: data.details };
+}
+
+/**
+ * Each exercise's catalog_id (when set) must reference an entry the user can see
+ * (a public seed or their own). Returns false on the first dangling/foreign id.
+ */
+function catalogRefsValid(userId: number, input: WorkoutInput): boolean {
+  for (const ex of input.exercises ?? []) {
+    if (ex.catalog_id != null && !getCatalogEntry(userId, ex.catalog_id)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // GET /workouts[?type=run] — list the user's workouts (newest first).
@@ -59,7 +81,11 @@ workoutsRouter.post('/', (req, res) => {
   if (!parsed.success) {
     return fail(res, 400, firstError(parsed.error));
   }
-  const workout = createWorkout(req.user!.id, toInput(parsed.data));
+  const input = toInput(parsed.data);
+  if (!catalogRefsValid(req.user!.id, input)) {
+    return fail(res, 400, 'Unknown catalog exercise');
+  }
+  const workout = createWorkout(req.user!.id, input);
   return ok(res, workout, 201);
 });
 
@@ -83,7 +109,11 @@ workoutsRouter.put('/:id', (req, res) => {
     return fail(res, 400, firstError(parsed.error));
   }
 
-  const workout = updateWorkout(req.user!.id, id, toInput(parsed.data));
+  const input = toInput(parsed.data);
+  if (!catalogRefsValid(req.user!.id, input)) {
+    return fail(res, 400, 'Unknown catalog exercise');
+  }
+  const workout = updateWorkout(req.user!.id, id, input);
   if (!workout) return fail(res, 404, 'Workout not found');
   return ok(res, workout);
 });

@@ -8,6 +8,7 @@ export interface ExerciseSet {
 
 export interface ExerciseInput {
   name: string;
+  catalog_id?: number | null;
   sets: ExerciseSet[];
 }
 
@@ -15,6 +16,7 @@ export interface Exercise {
   id: number;
   workout_id: number;
   user_id: number;
+  catalog_id: number | null;
   name: string;
   position: number;
   sets: ExerciseSet[];
@@ -26,6 +28,7 @@ interface ExerciseDbRow {
   id: number;
   workout_id: number;
   user_id: number;
+  catalog_id: number | null;
   name: string;
   position: number;
   sets: string | null;
@@ -60,11 +63,20 @@ export function insertExercises(
 ): void {
   const now = new Date().toISOString();
   const stmt = db.prepare(
-    `INSERT INTO exercises (workout_id, user_id, name, position, sets, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO exercises (workout_id, user_id, catalog_id, name, position, sets, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   exercises.forEach((ex, i) => {
-    stmt.run(workoutId, userId, ex.name, i, JSON.stringify(ex.sets), now, now);
+    stmt.run(
+      workoutId,
+      userId,
+      ex.catalog_id ?? null,
+      ex.name,
+      i,
+      JSON.stringify(ex.sets),
+      now,
+      now
+    );
   });
 }
 

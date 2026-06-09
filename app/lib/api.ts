@@ -122,6 +122,7 @@ export interface ExerciseSet {
 }
 export interface Exercise {
   id: number;
+  catalog_id: number | null;
   name: string;
   position: number;
   sets: ExerciseSet[];
@@ -163,7 +164,11 @@ interface WorkoutBaseInput {
 export type WorkoutInput =
   | (WorkoutBaseInput & {
       type: "strength";
-      exercises: { name: string; sets: ExerciseSet[] }[];
+      exercises: {
+        name: string;
+        catalog_id?: number | null;
+        sets: ExerciseSet[];
+      }[];
     })
   | (WorkoutBaseInput & { type: "run" | "cycle"; details: CardioDetails })
   | (WorkoutBaseInput & { type: "yoga"; details: YogaDetails });
