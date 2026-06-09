@@ -1,6 +1,7 @@
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { api, WORKOUT_TYPES } from "../../lib/api";
 import { useApiData } from "../../lib/useApi";
 import {
@@ -14,6 +15,7 @@ import { colors, workoutTypeColor } from "../../lib/theme";
 import { Card, StatTile, EmptyState } from "../../components/ui";
 
 export default function Dashboard() {
+  const router = useRouter();
   const { data, error, initialLoading } = useApiData(
     () => api.dashboard.get(7),
     []
@@ -31,6 +33,21 @@ export default function Dashboard() {
           </Text>
           <Text className="text-3xl font-extrabold text-[#E7ECF2]">Today</Text>
         </View>
+
+        {/* Train next — weak-area recommendations */}
+        <Pressable onPress={() => router.push("/recommendations")} className="mt-4">
+          <Card className="flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-base font-semibold text-[#E7ECF2]">
+                Train next
+              </Text>
+              <Text className="mt-0.5 text-xs text-[#8A97A6]">
+                See your under-trained muscles and suggested workouts.
+              </Text>
+            </View>
+            <Ionicons name="compass" size={22} color={colors.accent} />
+          </Card>
+        </Pressable>
 
         {initialLoading ? (
           <EmptyState title="Loading your week…" />

@@ -237,6 +237,29 @@ export interface LibraryFilters {
   q?: string;
 }
 
+// ---- Recommendations (weak-area analysis) ----
+
+export interface WeakArea {
+  muscle: MuscleGroup;
+  sets: number;
+  deficit: number;
+}
+
+export interface SuggestedTemplate {
+  template: LibraryTemplate;
+  matched_muscles: MuscleGroup[];
+  score: number;
+}
+
+export interface Recommendations {
+  range: { from: string; to: string; days: number };
+  target_sets_per_muscle: number;
+  muscle_volume: Record<MuscleGroup, number>;
+  weak_areas: WeakArea[];
+  recently_trained: MuscleGroup[];
+  suggested_templates: SuggestedTemplate[];
+}
+
 export interface FoodLog {
   id: number;
   user_id: number;
@@ -345,6 +368,10 @@ export const api = {
   },
   dashboard: {
     get: (days = 7) => http.get<Dashboard>(`/dashboard?days=${days}`),
+  },
+  recommendations: {
+    get: (days = 7) =>
+      http.get<Recommendations>(`/recommendations?days=${days}`),
   },
   account: {
     changePassword: (currentPassword: string, newPassword: string) =>
