@@ -298,6 +298,22 @@ export interface FoodLogInput {
   fat?: number;
 }
 
+export interface BodyWeight {
+  id: number;
+  user_id: number;
+  date: string;
+  weight_kg: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BodyWeightInput {
+  date: string;
+  weight_kg: number;
+  note?: string | null;
+}
+
 export interface FoodSummary {
   date: string;
   count: number;
@@ -396,6 +412,13 @@ export const api = {
   recommendations: {
     get: (days = 7) =>
       http.get<Recommendations>(`/recommendations?days=${days}`),
+  },
+  bodyWeights: {
+    list: () => http.get<BodyWeight[]>("/body-weights"),
+    create: (input: BodyWeightInput) =>
+      http.post<BodyWeight>("/body-weights", input),
+    remove: (id: number) =>
+      http.del<{ deleted: boolean }>(`/body-weights/${id}`),
   },
   account: {
     changePassword: (currentPassword: string, newPassword: string) =>

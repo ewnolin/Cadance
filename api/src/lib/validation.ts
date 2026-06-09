@@ -193,6 +193,15 @@ export const profileSchema = z.object({
   bio: z.string().trim().max(300).nullish(),
 });
 
+// ---- Bodyweight ----
+
+export const bodyWeightSchema = z.object({
+  date: workoutDateField,
+  // Plausible human range in kg; blocks fat-finger/unit mistakes.
+  weight_kg: z.number().positive().max(500),
+  note: z.string().trim().max(200).nullish(),
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';

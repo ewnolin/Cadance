@@ -16,6 +16,7 @@ import { workoutTemplatesRouter } from './routes/workoutTemplates';
 import { libraryRouter } from './routes/library';
 import { profileRouter } from './routes/profile';
 import { recommendationsRouter } from './routes/recommendations';
+import { bodyWeightsRouter } from './routes/bodyWeights';
 import { ok, fail } from './lib/respond';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -68,6 +69,7 @@ export function createApp() {
   app.use('/library', libraryRouter);
   app.use('/profile', profileRouter);
   app.use('/recommendations', recommendationsRouter);
+  app.use('/body-weights', bodyWeightsRouter);
 
   // 404 fallback.
   app.use((_req, res) => {

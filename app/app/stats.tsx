@@ -1,13 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { api, type Workout } from "../lib/api";
+import { api, type BodyWeight, type Workout } from "../lib/api";
 import { useApiData } from "../lib/useApi";
 import { addDays, titleCase, todayISO } from "../lib/format";
 import { colors } from "../lib/theme";
 import { Card, EmptyState, StatTile } from "../components/ui";
+import { LogWeightModal } from "../components/LogWeightModal";
 
 /** Monday-anchored start of the ISO week containing `iso` (YYYY-MM-DD). */
 function weekStart(iso: string): string {
@@ -26,6 +27,8 @@ export default function StatsScreen() {
   const router = useRouter();
   const recs = useApiData(() => api.recommendations.get(7), []);
   const workouts = useApiData(() => api.workouts.list(), []);
+  const weights = useApiData(() => api.bodyWeights.list(), []);
+  const [logging, setLogging] = useState(false);
 
   const stats = useMemo(() => computeStats(workouts.data ?? []), [workouts.data]);
   const rec = recs.data;
@@ -61,6 +64,15 @@ export default function StatsScreen() {
             <StatTile label="Workouts" value={stats.totalWorkouts} hint="all time" accent />
             <StatTile label="Sets" value={stats.setsThisWeek} hint="this week" />
           </View>
+
+          {/* Bodyweight */}
+          <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
+            Bodyweight
+          </Text>
+          <BodyWeightCard
+            weights={weights.data ?? []}
+            onLog={() => setLogging(true)}
+          />
 
           {/* Weekly activity */}
           <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
@@ -140,7 +152,98 @@ export default function StatsScreen() {
           )}
         </ScrollView>
       )}
+
+      <LogWeightModal
+        visible={logging}
+        initialWeight={weights.data?.[weights.data.length - 1]?.weight_kg}
+        onSaved={() => {
+          setLogging(false);
+          weights.reload();
+        }}
+        onClose={() => setLogging(false)}
+      />
     </SafeAreaView>
+  );
+}
+
+/** Latest weight, change since first entry, and a small trend sparkline. */
+function BodyWeightCard({
+  weights,
+  onLog,
+}: {
+  weights: BodyWeight[];
+  onLog: () => void;
+}) {
+  if (weights.length === 0) {
+    return (
+      <Card className="flex-row items-center justify-between">
+        <Text className="flex-1 pr-3 text-sm text-[#8A97A6]">
+          No weigh-ins yet. Log your weight to track the trend.
+        </Text>
+        <Pressable
+          onPress={onLog}
+          className="rounded-full bg-[#A3E635] px-4 py-2 active:opacity-80"
+        >
+          <Text className="text-sm font-semibold text-[#0B0F14]">Log</Text>
+        </Pressable>
+      </Card>
+    );
+  }
+
+  const latest = weights[weights.length - 1];
+  const first = weights[0];
+  const delta = latest.weight_kg - first.weight_kg;
+  const recent = weights.slice(-14);
+  const vals = recent.map((w) => w.weight_kg);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+
+  return (
+    <Card>
+      <View className="flex-row items-start justify-between">
+        <View>
+          <View className="flex-row items-baseline gap-1.5">
+            <Text className="text-3xl font-bold text-[#E7ECF2]">
+              {latest.weight_kg}
+            </Text>
+            <Text className="text-sm text-[#8A97A6]">kg</Text>
+          </View>
+          {weights.length > 1 ? (
+            <Text className="mt-0.5 text-xs text-[#8A97A6]">
+              {delta >= 0 ? "+" : ""}
+              {delta.toFixed(1)} kg since first entry
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={onLog}
+          className="rounded-full bg-[#A3E635] px-4 py-2 active:opacity-80"
+        >
+          <Text className="text-sm font-semibold text-[#0B0F14]">Log</Text>
+        </Pressable>
+      </View>
+
+      {recent.length > 1 ? (
+        <View className="mt-4 flex-row items-end justify-between gap-1" style={{ height: 48 }}>
+          {recent.map((w) => {
+            // Scale within the visible range so small changes are legible.
+            const pct =
+              max > min ? ((w.weight_kg - min) / (max - min)) * 100 : 50;
+            return (
+              <View
+                key={w.id}
+                className="flex-1 rounded-sm"
+                style={{
+                  height: `${Math.max(8, pct)}%`,
+                  backgroundColor: colors.accent,
+                  opacity: 0.5,
+                }}
+              />
+            );
+          })}
+        </View>
+      ) : null}
+    </Card>
   );
 }
 
