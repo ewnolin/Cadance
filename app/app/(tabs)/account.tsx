@@ -7,6 +7,7 @@ import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { formatDateLabel } from "../../lib/format";
 import { colors } from "../../lib/theme";
 import { Button, Card, TextField } from "../../components/ui";
+import { ReminderSettings } from "../../components/ReminderSettings";
 
 export default function Account() {
   const { user, signOut } = useSession();
@@ -65,6 +66,8 @@ export default function Account() {
             </View>
           </View>
         </Card>
+
+        <ReminderSettings />
 
         {msg ? <Text className="text-sm text-[#A3E635]">{msg}</Text> : null}
 
