@@ -19,10 +19,12 @@ import { EmptyState } from "./ui";
 export function StartSessionModal({
   visible,
   onStart,
+  onManage,
   onClose,
 }: {
   visible: boolean;
   onStart: (templateId: number | null) => void;
+  onManage: () => void;
   onClose: () => void;
 }) {
   const { data, error, initialLoading } = useApiData(
@@ -61,9 +63,14 @@ export function StartSessionModal({
             </Text>
           </Pressable>
 
-          <Text className="mt-3 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
-            From a template
-          </Text>
+          <View className="mt-3 flex-row items-center justify-between">
+            <Text className="text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
+              From a template
+            </Text>
+            <Pressable onPress={onManage} className="p-1">
+              <Text className="text-xs font-semibold text-[#A3E635]">Manage</Text>
+            </Pressable>
+          </View>
 
           {error ? (
             <EmptyState title="Couldn't load templates" subtitle={error} />
