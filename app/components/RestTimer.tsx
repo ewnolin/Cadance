@@ -4,8 +4,9 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { colors } from "../lib/theme";
 
 export interface RestTimerHandle {
@@ -54,6 +55,16 @@ export const RestTimer = forwardRef<RestTimerHandle, { defaultTarget?: number }>
     const elapsed = running ? Math.floor((now - startedAt) / 1000) : 0;
     const remaining = target - elapsed;
     const done = running && remaining <= 0;
+
+    // Buzz once when the rest period elapses (native only; web has no haptics).
+    useEffect(() => {
+      if (!done || Platform.OS === "web") return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {
+          // Haptics unavailable on this device — ignore.
+        }
+      );
+    }, [done]);
 
     const display = running ? fmt(Math.max(remaining, -3599)) : fmt(target);
 
