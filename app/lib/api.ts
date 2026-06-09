@@ -331,6 +331,20 @@ export interface FoodSummary {
   fat: number;
 }
 
+export interface ExercisePR {
+  name: string;
+  weight: number;
+  reps: number;
+  est_1rm: number;
+}
+
+export interface Stats {
+  total_workouts: number;
+  sets_this_week: number;
+  weekly: { week_start: string; count: number }[];
+  prs: ExercisePR[];
+}
+
 export interface Dashboard {
   range: { from: string; to: string; days: number };
   workouts: {
@@ -423,6 +437,9 @@ export const api = {
   },
   dashboard: {
     get: (days = 7) => http.get<Dashboard>(`/dashboard?days=${days}`),
+  },
+  stats: {
+    get: () => http.get<Stats>("/stats"),
   },
   recommendations: {
     get: (days = 7) =>

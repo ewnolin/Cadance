@@ -1,37 +1,25 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { api, type BodyWeight, type Workout } from "../lib/api";
+import { api, type BodyWeight } from "../lib/api";
 import { useApiData } from "../lib/useApi";
-import { addDays, titleCase, todayISO } from "../lib/format";
+import { titleCase } from "../lib/format";
 import { colors } from "../lib/theme";
 import { Card, EmptyState, StatTile } from "../components/ui";
 import { LogWeightModal } from "../components/LogWeightModal";
 
-/** Monday-anchored start of the ISO week containing `iso` (YYYY-MM-DD). */
-function weekStart(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  const back = (d.getDay() + 6) % 7; // 0 = Monday
-  return addDays(iso, -back);
-}
-
-interface PR {
-  name: string;
-  weight: number;
-  reps: number;
-}
-
 export default function StatsScreen() {
   const router = useRouter();
+  const statsData = useApiData(() => api.stats.get(), []);
   const recs = useApiData(() => api.recommendations.get(7), []);
-  const workouts = useApiData(() => api.workouts.list(), []);
   const weights = useApiData(() => api.bodyWeights.list(), []);
   const [logging, setLogging] = useState(false);
 
-  const stats = useMemo(() => computeStats(workouts.data ?? []), [workouts.data]);
+  const stats = statsData.data;
   const rec = recs.data;
+  const prs = (stats?.prs ?? []).slice(0, 12);
   const muscleMax = rec
     ? Math.max(rec.target_sets_per_muscle, ...Object.values(rec.muscle_volume))
     : 0;
@@ -50,10 +38,10 @@ export default function StatsScreen() {
         </Pressable>
       </View>
 
-      {workouts.initialLoading ? (
+      {statsData.initialLoading ? (
         <EmptyState title="Crunching your numbers…" />
-      ) : workouts.error ? (
-        <EmptyState title="Couldn't load stats" subtitle={workouts.error} />
+      ) : statsData.error ? (
+        <EmptyState title="Couldn't load stats" subtitle={statsData.error} />
       ) : (
         <ScrollView
           contentContainerClassName="px-5 pb-10 gap-3"
@@ -61,8 +49,8 @@ export default function StatsScreen() {
         >
           {/* Headline */}
           <View className="flex-row gap-3">
-            <StatTile label="Workouts" value={stats.totalWorkouts} hint="all time" accent />
-            <StatTile label="Sets" value={stats.setsThisWeek} hint="this week" />
+            <StatTile label="Workouts" value={stats?.total_workouts ?? 0} hint="all time" accent />
+            <StatTile label="Sets" value={stats?.sets_this_week ?? 0} hint="this week" />
           </View>
 
           {/* Bodyweight */}
@@ -79,7 +67,7 @@ export default function StatsScreen() {
             Workouts per week
           </Text>
           <Card>
-            <WeeklyBars weeks={stats.weeks} />
+            <WeeklyBars weekly={stats?.weekly ?? []} />
           </Card>
 
           {/* Volume per muscle group */}
@@ -123,7 +111,7 @@ export default function StatsScreen() {
           <Text className="mt-2 text-xs font-semibold uppercase tracking-wider text-[#8A97A6]">
             Personal records
           </Text>
-          {stats.prs.length === 0 ? (
+          {prs.length === 0 ? (
             <Card>
               <Text className="text-sm text-[#8A97A6]">
                 Heaviest sets show up here once you've logged some lifts.
@@ -131,7 +119,7 @@ export default function StatsScreen() {
             </Card>
           ) : (
             <Card>
-              {stats.prs.map((pr, i) => (
+              {prs.map((pr, i) => (
                 <Pressable
                   key={pr.name}
                   onPress={() =>
@@ -140,7 +128,7 @@ export default function StatsScreen() {
                     )
                   }
                   className={`flex-row items-center justify-between py-2.5 ${
-                    i < stats.prs.length - 1 ? "border-b border-[#232B36]" : ""
+                    i < prs.length - 1 ? "border-b border-[#232B36]" : ""
                   }`}
                 >
                   <Text className="flex-1 pr-2 text-base text-[#E7ECF2]">{pr.name}</Text>
@@ -255,62 +243,23 @@ function BodyWeightCard({
   );
 }
 
-interface ComputedStats {
-  totalWorkouts: number;
-  setsThisWeek: number;
-  weeks: { label: string; count: number }[];
-  prs: PR[];
-}
-
-function computeStats(list: Workout[]): ComputedStats {
-  const thisWeekStart = weekStart(todayISO());
-
-  // Six week buckets ending with the current week.
-  const weekAnchors: string[] = [];
-  for (let i = 5; i >= 0; i--) weekAnchors.push(addDays(thisWeekStart, -i * 7));
-  const counts = new Map(weekAnchors.map((a) => [a, 0]));
-
-  let setsThisWeek = 0;
-  const best = new Map<string, PR>();
-
-  for (const w of list) {
-    const ws = weekStart(w.date);
-    if (counts.has(ws)) counts.set(ws, counts.get(ws)! + 1);
-
-    if (w.type !== "strength" || !w.exercises) continue;
-    const inThisWeek = w.date >= thisWeekStart;
-    for (const ex of w.exercises) {
-      if (inThisWeek) setsThisWeek += ex.sets.length;
-      for (const s of ex.sets) {
-        const prev = best.get(ex.name);
-        if (s.weight_kg > 0 && (!prev || s.weight_kg > prev.weight)) {
-          best.set(ex.name, { name: ex.name, weight: s.weight_kg, reps: s.reps });
-        }
-      }
-    }
-  }
-
-  const weeks = weekAnchors.map((a) => ({
-    label: new Date(a + "T00:00:00").toLocaleDateString(undefined, {
+function WeeklyBars({
+  weekly,
+}: {
+  weekly: { week_start: string; count: number }[];
+}) {
+  const max = Math.max(1, ...weekly.map((w) => w.count));
+  const label = (iso: string) =>
+    new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
-    }),
-    count: counts.get(a) ?? 0,
-  }));
-
-  const prs = [...best.values()].sort((a, b) => b.weight - a.weight).slice(0, 8);
-
-  return { totalWorkouts: list.length, setsThisWeek, weeks, prs };
-}
-
-function WeeklyBars({ weeks }: { weeks: { label: string; count: number }[] }) {
-  const max = Math.max(1, ...weeks.map((w) => w.count));
+    });
   return (
     <View className="mt-1 flex-row items-end justify-between gap-2">
-      {weeks.map((w, i) => {
-        const isCurrent = i === weeks.length - 1;
+      {weekly.map((w, i) => {
+        const isCurrent = i === weekly.length - 1;
         return (
-          <View key={w.label} className="flex-1 items-center gap-1.5">
+          <View key={w.week_start} className="flex-1 items-center gap-1.5">
             <Text className="text-[10px] font-semibold text-[#8A97A6]">
               {w.count || ""}
             </Text>
@@ -323,7 +272,7 @@ function WeeklyBars({ weeks }: { weeks: { label: string; count: number }[] }) {
                 }}
               />
             </View>
-            <Text className="text-[10px] text-[#6B6F62]">{w.label}</Text>
+            <Text className="text-[10px] text-[#6B6F62]">{label(w.week_start)}</Text>
           </View>
         );
       })}
