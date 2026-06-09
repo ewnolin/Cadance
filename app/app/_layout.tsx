@@ -38,6 +38,7 @@ function RootNavigator() {
         <Stack.Screen name="session" options={{ presentation: "modal" }} />
         <Stack.Screen name="recommendations" options={{ presentation: "modal" }} />
         <Stack.Screen name="stats" options={{ presentation: "modal" }} />
+        <Stack.Screen name="exercise-progress" options={{ presentation: "modal" }} />
         <Stack.Screen name="templates" />
         <Stack.Screen name="template-edit" options={{ presentation: "modal" }} />
       </Stack.Protected>

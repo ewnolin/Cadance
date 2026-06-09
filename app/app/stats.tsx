@@ -132,21 +132,29 @@ export default function StatsScreen() {
           ) : (
             <Card>
               {stats.prs.map((pr, i) => (
-                <View
+                <Pressable
                   key={pr.name}
+                  onPress={() =>
+                    router.push(
+                      `/exercise-progress?name=${encodeURIComponent(pr.name)}`
+                    )
+                  }
                   className={`flex-row items-center justify-between py-2.5 ${
                     i < stats.prs.length - 1 ? "border-b border-[#232B36]" : ""
                   }`}
                 >
                   <Text className="flex-1 pr-2 text-base text-[#E7ECF2]">{pr.name}</Text>
-                  <Text className="text-base font-semibold text-[#E7ECF2]">
-                    {pr.weight} kg
-                    <Text className="text-sm font-normal text-[#8A97A6]">
-                      {" "}
-                      × {pr.reps}
+                  <View className="flex-row items-center gap-1.5">
+                    <Text className="text-base font-semibold text-[#E7ECF2]">
+                      {pr.weight} kg
+                      <Text className="text-sm font-normal text-[#8A97A6]">
+                        {" "}
+                        × {pr.reps}
+                      </Text>
                     </Text>
-                  </Text>
-                </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                  </View>
+                </Pressable>
               ))}
             </Card>
           )}
