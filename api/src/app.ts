@@ -13,6 +13,8 @@ import { foodLogsRouter } from './routes/foodLogs';
 import { dashboardRouter } from './routes/dashboard';
 import { exercisesRouter } from './routes/exercises';
 import { workoutTemplatesRouter } from './routes/workoutTemplates';
+import { libraryRouter } from './routes/library';
+import { profileRouter } from './routes/profile';
 import { ok, fail } from './lib/respond';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -62,6 +64,8 @@ export function createApp() {
   app.use('/dashboard', dashboardRouter);
   app.use('/exercises', exercisesRouter);
   app.use('/workout-templates', workoutTemplatesRouter);
+  app.use('/library', libraryRouter);
+  app.use('/profile', profileRouter);
 
   // 404 fallback.
   app.use((_req, res) => {
