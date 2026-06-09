@@ -31,6 +31,7 @@ function toInput(data: z.infer<typeof workoutSchema>): WorkoutInput {
     date: data.date,
     duration_s: data.duration_s ?? null,
     notes: data.notes ?? null,
+    feel: data.feel ?? null,
   };
   if (data.type === 'strength') {
     // Exercises are stored as rows; no details JSON for strength.

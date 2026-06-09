@@ -9,6 +9,8 @@ import {
 
 export type WorkoutType = 'strength' | 'run' | 'cycle' | 'yoga';
 
+export type WorkoutFeel = 'easy' | 'moderate' | 'hard' | 'max';
+
 interface WorkoutDbRow {
   id: number;
   user_id: number;
@@ -16,6 +18,7 @@ interface WorkoutDbRow {
   date: string;
   duration_s: number | null;
   notes: string | null;
+  feel: WorkoutFeel | null;
   details: string | null;
   created_at: string;
   updated_at: string;
@@ -30,6 +33,7 @@ export interface Workout {
   date: string;
   duration_s: number | null;
   notes: string | null;
+  feel: WorkoutFeel | null;
   details?: unknown;
   exercises?: Exercise[];
   created_at: string;
@@ -41,6 +45,7 @@ export interface WorkoutInput {
   date: string;
   duration_s: number | null;
   notes: string | null;
+  feel: WorkoutFeel | null;
   details: unknown; // null for strength (exercises are stored as rows)
   exercises?: ExerciseInput[]; // present for strength
 }
@@ -53,6 +58,7 @@ function mapRow(row: WorkoutDbRow): Workout {
     date: row.date,
     duration_s: row.duration_s,
     notes: row.notes,
+    feel: row.feel,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -98,8 +104,8 @@ export function createWorkout(userId: number, input: WorkoutInput): Workout {
   const create = db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO workouts (user_id, type, date, duration_s, notes, details, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO workouts (user_id, type, date, duration_s, notes, feel, details, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         userId,
@@ -107,6 +113,7 @@ export function createWorkout(userId: number, input: WorkoutInput): Workout {
         input.date,
         input.duration_s,
         input.notes,
+        input.feel,
         detailsToJson(input.details),
         now,
         now
@@ -127,7 +134,7 @@ export function updateWorkout(
   const update = db.transaction(() => {
     const info = db
       .prepare(
-        `UPDATE workouts SET type = ?, date = ?, duration_s = ?, notes = ?, details = ?, updated_at = ?
+        `UPDATE workouts SET type = ?, date = ?, duration_s = ?, notes = ?, feel = ?, details = ?, updated_at = ?
          WHERE id = ? AND user_id = ?`
       )
       .run(
@@ -135,6 +142,7 @@ export function updateWorkout(
         input.date,
         input.duration_s,
         input.notes,
+        input.feel,
         detailsToJson(input.details),
         new Date().toISOString(),
         id,
