@@ -15,6 +15,7 @@ import {
   ApiError,
   WORKOUT_FEELS,
   type WorkoutFeel,
+  type WorkoutTemplate,
 } from "../lib/api";
 import { todayISO, titleCase } from "../lib/format";
 import { colors } from "../lib/theme";
@@ -39,6 +40,17 @@ let keySeq = 0;
 const nextKey = () => `ex-${keySeq++}`;
 const emptySet = (): SessionSet => ({ weight: "", reps: "", rpe: "" });
 
+/** Seed session exercises from a template's prescription. */
+function exercisesFromTemplate(t: WorkoutTemplate): SessionExercise[] {
+  return t.exercises.map((ex) => ({
+    key: nextKey(),
+    name: ex.name,
+    catalogId: ex.catalog_id,
+    targetReps: ex.target_reps,
+    sets: Array.from({ length: Math.max(1, ex.target_sets ?? 1) }, emptySet),
+  }));
+}
+
 /** RPE → a backend-valid value (1–10 in half steps), or null when blank/invalid. */
 function normalizeRpe(raw: string): number | null {
   if (!raw.trim()) return null;
@@ -61,6 +73,7 @@ export default function Session() {
   const [feel, setFeel] = useState<WorkoutFeel | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [resumed, setResumed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -77,20 +90,13 @@ export default function Session() {
         setTitle(draft.title);
         setExercises(draft.exercises);
         setFeel((draft.feel as WorkoutFeel | null) ?? null);
+        setResumed(true);
       } else if (templateId != null) {
         try {
           const t = await api.templates.get(templateId);
           if (!active) return;
           setTitle(t.name);
-          setExercises(
-            t.exercises.map((ex) => ({
-              key: nextKey(),
-              name: ex.name,
-              catalogId: ex.catalog_id,
-              targetReps: ex.target_reps,
-              sets: Array.from({ length: Math.max(1, ex.target_sets ?? 1) }, emptySet),
-            }))
-          );
+          setExercises(exercisesFromTemplate(t));
         } catch (e) {
           if (active)
             setError(
@@ -157,6 +163,25 @@ export default function Session() {
       { key: nextKey(), name, catalogId, targetReps: null, sets: [emptySet()] },
     ]);
     setPicking(false);
+  }
+
+  // Drop the resumed draft and re-seed from the template (or empty).
+  async function startFresh() {
+    setResumed(false);
+    await clearDraft(draftKey);
+    setFeel(null);
+    if (templateId != null) {
+      try {
+        const t = await api.templates.get(templateId);
+        setTitle(t.name);
+        setExercises(exercisesFromTemplate(t));
+        return;
+      } catch {
+        // fall through to an empty session
+      }
+    }
+    setTitle("Quick session");
+    setExercises([]);
   }
 
   function discard() {
@@ -239,6 +264,23 @@ export default function Session() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {resumed ? (
+            <View className="flex-row items-center gap-2 rounded-2xl border border-[#232B36] bg-[#191B16] p-3">
+              <Ionicons name="time-outline" size={18} color={colors.accent} />
+              <Text className="flex-1 text-sm text-[#E7ECF2]">
+                Resumed your in-progress session.
+              </Text>
+              <Pressable onPress={startFresh} className="px-2 py-1">
+                <Text className="text-xs font-semibold text-[#A3E635]">
+                  Start fresh
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setResumed(false)} className="p-1">
+                <Ionicons name="close" size={16} color={colors.muted} />
+              </Pressable>
+            </View>
+          ) : null}
+
           {exercises.map((ex, ei) => (
             <Card key={ex.key}>
               <View className="flex-row items-start justify-between">
