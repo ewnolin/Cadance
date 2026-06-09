@@ -220,6 +220,23 @@ export interface WorkoutTemplate {
   updated_at: string;
 }
 
+/** Author attribution shown next to shared library content. */
+export interface PublicProfile {
+  user_id: number;
+  display_name: string;
+}
+
+/** A template as seen in the public library: with author + trained muscles. */
+export interface LibraryTemplate extends WorkoutTemplate {
+  author: PublicProfile;
+  muscles: MuscleGroup[];
+}
+
+export interface LibraryFilters {
+  muscle?: MuscleGroup;
+  q?: string;
+}
+
 export interface FoodLog {
   id: number;
   user_id: number;
@@ -306,6 +323,17 @@ export const api = {
   templates: {
     list: () => http.get<WorkoutTemplate[]>("/workout-templates"),
     get: (id: number) => http.get<WorkoutTemplate>(`/workout-templates/${id}`),
+  },
+  library: {
+    list: (filters: LibraryFilters = {}) => {
+      const qs = new URLSearchParams();
+      if (filters.muscle) qs.set("muscle", filters.muscle);
+      if (filters.q) qs.set("q", filters.q);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return http.get<LibraryTemplate[]>(`/library${suffix}`);
+    },
+    get: (id: number) => http.get<LibraryTemplate>(`/library/${id}`),
+    copy: (id: number) => http.post<WorkoutTemplate>(`/library/${id}/copy`),
   },
   foodLogs: {
     list: (date?: string) =>
