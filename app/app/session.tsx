@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -22,6 +22,7 @@ import { colors } from "../lib/theme";
 import { loadDraft, saveDraft, clearDraft } from "../lib/draft";
 import { Button, Card, EmptyState, TextField } from "../components/ui";
 import { ExercisePicker } from "../components/ExercisePicker";
+import { RestTimer, type RestTimerHandle } from "../components/RestTimer";
 
 interface SessionSet {
   weight: string;
@@ -77,6 +78,7 @@ export default function Session() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
+  const restRef = useRef<RestTimerHandle>(null);
 
   // Hydrate once on mount: resume a saved draft if one exists, else seed from
   // the chosen template (or start empty). A one-shot load so a focus-refresh
@@ -146,6 +148,8 @@ export default function Session() {
         return { ...ex, sets: [...ex.sets, { ...emptySet(), weight: last?.weight ?? "" }] };
       })
     );
+    // Logging a set means you're now resting before the next — start the timer.
+    restRef.current?.start();
   }
   function removeSet(ei: number, si: number) {
     setExercises((prev) =>
@@ -368,6 +372,8 @@ export default function Session() {
             variant="ghost"
             onPress={() => setPicking(true)}
           />
+
+          {exercises.length > 0 ? <RestTimer ref={restRef} /> : null}
 
           {/* Session feel */}
           <View className="mt-2">
