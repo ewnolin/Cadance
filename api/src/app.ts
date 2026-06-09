@@ -13,6 +13,7 @@ import { foodLogsRouter } from './routes/foodLogs';
 import { dashboardRouter } from './routes/dashboard';
 import { exercisesRouter } from './routes/exercises';
 import { ok, fail } from './lib/respond';
+import { requestLogger } from './middleware/requestLogger';
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp() {
   // cookies and the real client IP (for rate limiting) work.
   app.set('trust proxy', 1);
 
+  app.use(requestLogger);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
