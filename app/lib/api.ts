@@ -220,6 +220,20 @@ export interface WorkoutTemplate {
   updated_at: string;
 }
 
+export interface TemplateExerciseInput {
+  name: string;
+  catalog_id?: number | null;
+  target_sets?: number | null;
+  target_reps?: string | null;
+  notes?: string | null;
+}
+
+export interface WorkoutTemplateInput {
+  name: string;
+  notes?: string | null;
+  exercises: TemplateExerciseInput[];
+}
+
 /** Author attribution shown next to shared library content. */
 export interface PublicProfile {
   user_id: number;
@@ -346,6 +360,16 @@ export const api = {
   templates: {
     list: () => http.get<WorkoutTemplate[]>("/workout-templates"),
     get: (id: number) => http.get<WorkoutTemplate>(`/workout-templates/${id}`),
+    create: (input: WorkoutTemplateInput) =>
+      http.post<WorkoutTemplate>("/workout-templates", input),
+    update: (id: number, input: WorkoutTemplateInput) =>
+      http.put<WorkoutTemplate>(`/workout-templates/${id}`, input),
+    remove: (id: number) =>
+      http.del<{ deleted: boolean }>(`/workout-templates/${id}`),
+    publish: (id: number) =>
+      http.post<WorkoutTemplate>(`/workout-templates/${id}/publish`),
+    unpublish: (id: number) =>
+      http.post<WorkoutTemplate>(`/workout-templates/${id}/unpublish`),
   },
   library: {
     list: (filters: LibraryFilters = {}) => {

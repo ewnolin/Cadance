@@ -170,6 +170,10 @@ export default function Workouts() {
       <StartSessionModal
         visible={starting}
         onClose={() => setStarting(false)}
+        onManage={() => {
+          setStarting(false);
+          router.push("/templates");
+        }}
         onStart={(templateId) => {
           setStarting(false);
           router.push(
