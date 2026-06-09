@@ -131,6 +131,22 @@ export function getCatalogEntriesByIds(
   return map;
 }
 
+/**
+ * Index of the catalog visible to a user, keyed by lower-cased name, for
+ * resolving a logged exercise's muscles from its (free-text) name. Public seeds
+ * win over a same-named custom entry. This is the bridge until logged exercises
+ * carry an explicit catalog_id.
+ */
+export function catalogByName(userId: number): Map<string, CatalogEntry> {
+  const map = new Map<string, CatalogEntry>();
+  for (const e of listCatalog(userId)) {
+    const key = e.name.toLowerCase();
+    const existing = map.get(key);
+    if (!existing || (e.is_public && !existing.is_public)) map.set(key, e);
+  }
+  return map;
+}
+
 /** Create a custom (private) catalog entry owned by the user. */
 export function createCatalogEntry(
   userId: number,
