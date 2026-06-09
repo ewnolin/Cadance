@@ -75,6 +75,23 @@ describe('stats', () => {
     expect(bench.est_1rm).toBeCloseTo(99.2, 1);
   });
 
+  it('merges case-variant exercise names in PRs', async () => {
+    const agent = await registerAgent('sprs@example.com');
+    await agent
+      .post('/workouts')
+      .send({ type: 'strength', date: isoDaysAgo(0), exercises: [{ name: 'Squat', sets: [{ reps: 5, weight_kg: 100 }] }] })
+      .expect(201);
+    await agent
+      .post('/workouts')
+      .send({ type: 'strength', date: isoDaysAgo(1), exercises: [{ name: 'squat', sets: [{ reps: 3, weight_kg: 110 }] }] })
+      .expect(201);
+
+    const res = await agent.get('/stats').expect(200);
+    const squats = res.body.data.prs.filter((p: { name: string }) => /^squat$/i.test(p.name));
+    expect(squats).toHaveLength(1);
+    expect(squats[0].weight).toBe(110);
+  });
+
   it('scopes stats to the requesting user', async () => {
     const alice = await registerAgent('sa@example.com');
     const bob = await registerAgent('sb@example.com');
