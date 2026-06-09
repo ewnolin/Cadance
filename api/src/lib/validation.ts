@@ -97,6 +97,62 @@ export const foodLogSchema = z.object({
   fat: z.number().nonnegative().default(0),
 });
 
+// ---- Exercise catalog (muscle-group taxonomy) ----
+
+// A fixed, curated taxonomy. Granular enough to drive library filtering and
+// weak-area recommendations, but closed so the data stays comparable across
+// exercises. Adding a muscle is a deliberate, app-wide decision (and a migration
+// concern for any persisted analytics), not a free-text field.
+export const MUSCLE_GROUPS = [
+  'chest',
+  'back',
+  'lats',
+  'traps',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'forearms',
+  'quads',
+  'hamstrings',
+  'glutes',
+  'calves',
+  'core',
+] as const;
+export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+
+// Compound (multi-joint) vs isolation (single-joint) — drives ordering hints
+// ("open with a compound") in recommendations later.
+export const EXERCISE_CATEGORIES = ['compound', 'isolation'] as const;
+
+export const EQUIPMENT_TYPES = [
+  'barbell',
+  'dumbbell',
+  'machine',
+  'cable',
+  'bodyweight',
+  'kettlebell',
+  'other',
+] as const;
+
+const muscleField = z.enum(MUSCLE_GROUPS);
+
+// Body of a user-created (custom) catalog entry. Seeded/global entries are
+// inserted by the migration, not this schema.
+export const catalogEntrySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  category: z.enum(EXERCISE_CATEGORIES).default('compound'),
+  equipment: z.enum(EQUIPMENT_TYPES).default('other'),
+  // At least one primary muscle; de-duplicated so counts don't double up.
+  primary_muscles: z
+    .array(muscleField)
+    .min(1, 'At least one primary muscle is required')
+    .transform((m) => [...new Set(m)]),
+  secondary_muscles: z
+    .array(muscleField)
+    .default([])
+    .transform((m) => [...new Set(m)]),
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';
