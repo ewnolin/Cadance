@@ -51,10 +51,18 @@ export default function Workouts() {
   );
   const [adding, setAdding] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [editing, setEditing] = useState<Workout | null>(null);
 
   async function createWorkout(input: WorkoutInput) {
     await api.workouts.create(input);
     setAdding(false);
+    reload();
+  }
+
+  async function updateWorkout(input: WorkoutInput) {
+    if (!editing) return;
+    await api.workouts.update(editing.id, input);
+    setEditing(null);
     reload();
   }
 
@@ -113,7 +121,11 @@ export default function Workouts() {
             />
           }
           renderItem={({ item }) => (
-            <Pressable onLongPress={() => confirmDelete(item)} delayLongPress={300}>
+            <Pressable
+              onPress={() => setEditing(item)}
+              onLongPress={() => confirmDelete(item)}
+              delayLongPress={300}
+            >
               <Card>
                 <View className="flex-row items-center justify-between">
                   <Pill
@@ -164,6 +176,29 @@ export default function Workouts() {
             onSubmit={createWorkout}
             onCancel={() => setAdding(false)}
           />
+        </SafeAreaView>
+      </Modal>
+
+      <Modal
+        visible={editing != null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditing(null)}
+      >
+        <SafeAreaView className="flex-1 bg-[#0B0F14]" edges={["top"]}>
+          <View className="px-5 pb-3 pt-2">
+            <Text className="text-2xl font-extrabold text-[#E7ECF2]">
+              Edit workout
+            </Text>
+          </View>
+          {editing ? (
+            <WorkoutForm
+              initial={editing}
+              submitLabel="Save changes"
+              onSubmit={updateWorkout}
+              onCancel={() => setEditing(null)}
+            />
+          ) : null}
         </SafeAreaView>
       </Modal>
 

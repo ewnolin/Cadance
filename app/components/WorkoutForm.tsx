@@ -2,9 +2,14 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  WORKOUT_FEELS,
   WORKOUT_TYPES,
+  type CardioDetails,
+  type Workout,
+  type WorkoutFeel,
   type WorkoutInput,
   type WorkoutType,
+  type YogaDetails,
 } from "../lib/api";
 import { todayISO, titleCase } from "../lib/format";
 import { colors } from "../lib/theme";
@@ -13,34 +18,76 @@ import { Button, TextField } from "./ui";
 interface DraftSet {
   reps: string;
   weight: string;
+  rpe: string;
 }
 interface DraftExercise {
   name: string;
+  catalogId: number | null;
   sets: DraftSet[];
 }
 
 const INTENSITIES = ["gentle", "moderate", "power"] as const;
 
+/** RPE → a backend-valid value (1–10 in half steps), or null when blank/invalid. */
+function normalizeRpe(raw: string): number | null {
+  if (!raw.trim()) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(10, Math.max(1, Math.round(n * 2) / 2));
+}
+
 export function WorkoutForm({
   onSubmit,
   onCancel,
+  initial,
+  submitLabel = "Save workout",
 }: {
   onSubmit: (input: WorkoutInput) => Promise<void>;
   onCancel: () => void;
+  /** When set, the form is prefilled to edit this workout. */
+  initial?: Workout;
+  submitLabel?: string;
 }) {
-  const [type, setType] = useState<WorkoutType>("strength");
-  const [date, setDate] = useState(todayISO());
-  const [durationMin, setDurationMin] = useState("");
-  const [notes, setNotes] = useState("");
+  const [type, setType] = useState<WorkoutType>(initial?.type ?? "strength");
+  const [date, setDate] = useState(initial?.date ?? todayISO());
+  const [durationMin, setDurationMin] = useState(
+    initial?.duration_s ? String(Math.round(initial.duration_s / 60)) : ""
+  );
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [feel, setFeel] = useState<WorkoutFeel | null>(initial?.feel ?? null);
 
-  const [exercises, setExercises] = useState<DraftExercise[]>([
-    { name: "", sets: [{ reps: "", weight: "" }] },
-  ]);
-  const [distanceKm, setDistanceKm] = useState("");
-  const [elevationM, setElevationM] = useState("");
-  const [style, setStyle] = useState("");
-  const [intensity, setIntensity] =
-    useState<(typeof INTENSITIES)[number]>("moderate");
+  const [exercises, setExercises] = useState<DraftExercise[]>(() => {
+    if (initial?.type === "strength" && initial.exercises?.length) {
+      return initial.exercises.map((ex) => ({
+        name: ex.name,
+        catalogId: ex.catalog_id,
+        sets: ex.sets.map((s) => ({
+          reps: String(s.reps),
+          weight: String(s.weight_kg),
+          rpe: s.rpe != null ? String(s.rpe) : "",
+        })),
+      }));
+    }
+    return [{ name: "", catalogId: null, sets: [{ reps: "", weight: "", rpe: "" }] }];
+  });
+
+  const initialCardio =
+    initial?.type === "run" || initial?.type === "cycle"
+      ? (initial.details as CardioDetails | null)
+      : null;
+  const initialYoga =
+    initial?.type === "yoga" ? (initial.details as YogaDetails | null) : null;
+
+  const [distanceKm, setDistanceKm] = useState(
+    initialCardio?.distance_km != null ? String(initialCardio.distance_km) : ""
+  );
+  const [elevationM, setElevationM] = useState(
+    initialCardio?.elevation_m != null ? String(initialCardio.elevation_m) : ""
+  );
+  const [style, setStyle] = useState(initialYoga?.style ?? "");
+  const [intensity, setIntensity] = useState<(typeof INTENSITIES)[number]>(
+    initialYoga?.intensity ?? "moderate"
+  );
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -73,18 +120,24 @@ export function WorkoutForm({
       date,
       duration_s: duration,
       notes: notes.trim() || undefined,
+      feel: feel ?? undefined,
     };
 
     if (type === "strength") {
       const built = exercises
         .map((ex) => ({
           name: ex.name.trim(),
+          catalog_id: ex.catalogId,
           sets: ex.sets
             .filter((s) => s.reps.trim() !== "" || s.weight.trim() !== "")
-            .map((s) => ({
-              reps: Math.max(0, Math.round(Number(s.reps) || 0)),
-              weight_kg: Math.max(0, Number(s.weight) || 0),
-            })),
+            .map((s) => {
+              const rpe = normalizeRpe(s.rpe);
+              return {
+                reps: Math.max(0, Math.round(Number(s.reps) || 0)),
+                weight_kg: Math.max(0, Number(s.weight) || 0),
+                ...(rpe != null ? { rpe } : {}),
+              };
+            }),
         }))
         .filter((ex) => ex.name.length > 0);
       if (built.length === 0) {
@@ -219,6 +272,9 @@ export function WorkoutForm({
                     <Text className="flex-1 text-xs uppercase text-[#8A97A6]">
                       Weight (kg)
                     </Text>
+                    <Text className="flex-1 text-xs uppercase text-[#8A97A6]">
+                      RPE
+                    </Text>
                     <View className="w-8" />
                   </View>
                   {ex.sets.map((s, si) => (
@@ -235,6 +291,13 @@ export function WorkoutForm({
                         value={s.weight}
                         onChangeText={(v) => updateSet(ei, si, { weight: v })}
                         placeholder="0"
+                        keyboardType="numeric"
+                      />
+                      <TextField
+                        className="flex-1"
+                        value={s.rpe}
+                        onChangeText={(v) => updateSet(ei, si, { rpe: v })}
+                        placeholder="–"
                         keyboardType="numeric"
                       />
                       <Pressable
@@ -259,7 +322,7 @@ export function WorkoutForm({
                   <Pressable
                     onPress={() =>
                       updateExercise(ei, {
-                        sets: [...ex.sets, { reps: "", weight: "" }],
+                        sets: [...ex.sets, { reps: "", weight: "", rpe: "" }],
                       })
                     }
                     className="mt-1 self-start"
@@ -277,7 +340,7 @@ export function WorkoutForm({
               onPress={() =>
                 setExercises((prev) => [
                   ...prev,
-                  { name: "", sets: [{ reps: "", weight: "" }] },
+                  { name: "", catalogId: null, sets: [{ reps: "", weight: "", rpe: "" }] },
                 ])
               }
             />
@@ -343,17 +406,46 @@ export function WorkoutForm({
           </View>
         ) : null}
 
+        {/* Feel */}
+        <View>
+          <Text className="mb-1.5 text-sm font-medium text-[#8A97A6]">
+            How did it feel? (optional)
+          </Text>
+          <View className="flex-row gap-2">
+            {WORKOUT_FEELS.map((f) => {
+              const selected = f === feel;
+              return (
+                <Pressable
+                  key={f}
+                  onPress={() => setFeel(selected ? null : f)}
+                  className={`flex-1 items-center rounded-xl py-2.5 ${
+                    selected ? "bg-[#A3E635]" : "border border-[#232B36]"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${
+                      selected ? "text-[#0B0F14]" : "text-[#8A97A6]"
+                    }`}
+                  >
+                    {titleCase(f)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <TextField
           label="Notes (optional)"
           value={notes}
           onChangeText={setNotes}
-          placeholder="How did it feel?"
+          placeholder="How did it go?"
           multiline
         />
 
         {error ? <Text className="text-sm text-[#F87171]">{error}</Text> : null}
 
-        <Button title="Save workout" onPress={submit} loading={busy} />
+        <Button title={submitLabel} onPress={submit} loading={busy} />
         <Button title="Cancel" variant="ghost" onPress={onCancel} />
       </View>
     </ScrollView>
