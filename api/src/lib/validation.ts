@@ -65,6 +65,8 @@ const setSchema = z.object({
 });
 const exerciseSchema = z.object({
   name: z.string().trim().min(1).max(120),
+  // Optional link to a shared catalog entry (existence checked in the route).
+  catalog_id: z.number().int().positive().nullish(),
   sets: z.array(setSchema).max(50),
 });
 

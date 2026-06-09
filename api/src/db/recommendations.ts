@@ -1,6 +1,10 @@
 import { db } from './index';
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/validation';
-import { catalogByName } from './exerciseCatalog';
+import {
+  catalogByName,
+  getCatalogEntriesByIds,
+  type CatalogEntry,
+} from './exerciseCatalog';
 import {
   listPublicTemplates,
   type LibraryTemplate,
@@ -45,6 +49,21 @@ function addDays(iso: string, delta: number): string {
 interface LoggedExerciseRow {
   name: string;
   sets: string | null;
+  catalog_id: number | null;
+}
+
+/**
+ * Resolve a logged exercise to its catalog entry: prefer the explicit
+ * `catalog_id` link, falling back to a case-insensitive name match. Returns
+ * undefined for unrecognized free-text exercises.
+ */
+function resolveEntry(
+  row: { name: string; catalog_id: number | null },
+  byId: Map<number, CatalogEntry>,
+  byName: ReturnType<typeof catalogByName>
+): CatalogEntry | undefined {
+  if (row.catalog_id != null) return byId.get(row.catalog_id);
+  return byName.get(row.name.toLowerCase());
 }
 
 function setCount(sets: string | null): number {
@@ -71,12 +90,15 @@ function recentlyTrained(
   if (!last) return [];
 
   const rows = db
-    .prepare('SELECT name, sets FROM exercises WHERE workout_id = ?')
+    .prepare('SELECT name, sets, catalog_id FROM exercises WHERE workout_id = ?')
     .all(last.id) as LoggedExerciseRow[];
 
+  const byId = getCatalogEntriesByIds(
+    rows.map((r) => r.catalog_id).filter((id): id is number => id != null)
+  );
   const muscles = new Set<MuscleGroup>();
   for (const r of rows) {
-    const entry = byName.get(r.name.toLowerCase());
+    const entry = resolveEntry(r, byId, byName);
     if (!entry) continue;
     for (const m of entry.primary_muscles) muscles.add(m as MuscleGroup);
   }
@@ -96,18 +118,22 @@ export function getRecommendations(
   // Logged strength exercises in the window, with their set counts.
   const rows = db
     .prepare(
-      `SELECT e.name AS name, e.sets AS sets
+      `SELECT e.name AS name, e.sets AS sets, e.catalog_id AS catalog_id
        FROM exercises e JOIN workouts w ON w.id = e.workout_id
        WHERE e.user_id = ? AND w.date BETWEEN ? AND ?`
     )
     .all(userId, from, to) as LoggedExerciseRow[];
+
+  const byId = getCatalogEntriesByIds(
+    rows.map((r) => r.catalog_id).filter((id): id is number => id != null)
+  );
 
   const volume = Object.fromEntries(
     MUSCLE_GROUPS.map((m) => [m, 0])
   ) as Record<MuscleGroup, number>;
 
   for (const r of rows) {
-    const entry = byName.get(r.name.toLowerCase());
+    const entry = resolveEntry(r, byId, byName);
     if (!entry) continue; // unrecognized free-text exercise — no muscle credit
     const n = setCount(r.sets);
     for (const m of entry.primary_muscles) {

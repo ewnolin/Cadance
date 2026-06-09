@@ -151,6 +151,54 @@ describe('workouts', () => {
     expect(updated.body.data.feel).toBeNull();
   });
 
+  it('links a logged exercise to a catalog entry and rejects bad references', async () => {
+    const agent = await registerAgent('w8@example.com');
+    const cat = await agent
+      .get('/exercises/catalog?q=Barbell%20Bench%20Press')
+      .expect(200);
+    const catalogId = cat.body.data[0].id as number;
+
+    const created = await agent
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: '2026-06-08',
+        exercises: [
+          { name: 'Barbell Bench Press', catalog_id: catalogId, sets: [{ reps: 5, weight_kg: 80 }] },
+        ],
+      })
+      .expect(201);
+    expect(created.body.data.exercises[0].catalog_id).toBe(catalogId);
+
+    // Dangling catalog id is rejected.
+    await agent
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: '2026-06-08',
+        exercises: [{ name: 'Ghost', catalog_id: 999999, sets: [{ reps: 5, weight_kg: 20 }] }],
+      })
+      .expect(400);
+  });
+
+  it("rejects another user's private catalog entry on a logged exercise", async () => {
+    const alice = await registerAgent('wa2@example.com');
+    const bob = await registerAgent('wb2@example.com');
+    const custom = await alice
+      .post('/exercises/catalog')
+      .send({ name: 'Alice Move', primary_muscles: ['chest'] })
+      .expect(201);
+
+    await bob
+      .post('/workouts')
+      .send({
+        type: 'strength',
+        date: '2026-06-08',
+        exercises: [{ name: 'Alice Move', catalog_id: custom.body.data.id, sets: [{ reps: 5, weight_kg: 10 }] }],
+      })
+      .expect(400);
+  });
+
   it('updates and deletes a workout', async () => {
     const agent = await registerAgent('w4@example.com');
     const created = await agent.post('/workouts').send(cycle).expect(201);

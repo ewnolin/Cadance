@@ -144,6 +144,7 @@ export default function Session() {
     const built = exercises
       .map((ex) => ({
         name: ex.name.trim(),
+        catalog_id: ex.catalogId,
         sets: ex.sets
           .filter((s) => s.weight.trim() !== "" || s.reps.trim() !== "")
           .map((s) => {
