@@ -141,3 +141,11 @@ unlogged today doesn't break the streak until the day ends).
 
 > Sessions are stored in a `sessions` table created/managed by
 > `better-sqlite3-session-store` (not by Knex migrations).
+
+## Operations
+
+- **Request logging** — each request logs `METHOD path status duration` once the
+  response finishes (silent under `NODE_ENV=test`).
+- **Graceful shutdown** — on `SIGINT`/`SIGTERM` the server stops accepting
+  connections, then closes the SQLite handle (checkpointing the WAL) before
+  exiting, with a 10s force-exit fallback.
