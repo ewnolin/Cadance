@@ -360,6 +360,8 @@ export const api = {
     list: (type?: WorkoutType) =>
       http.get<Workout[]>(`/workouts${type ? `?type=${type}` : ""}`),
     create: (input: WorkoutInput) => http.post<Workout>("/workouts", input),
+    update: (id: number, input: WorkoutInput) =>
+      http.put<Workout>(`/workouts/${id}`, input),
     remove: (id: number) => http.del<{ deleted: boolean }>(`/workouts/${id}`),
   },
   exercises: {
