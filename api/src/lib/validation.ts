@@ -165,6 +165,25 @@ export const catalogEntrySchema = z.object({
     .transform((m) => [...new Set(m)]),
 });
 
+// ---- Workout templates (reusable preset workouts) ----
+
+// One prescribed exercise within a template. `catalog_id` optionally links to a
+// shared catalog entry (existence/visibility checked in the route); `name` is
+// always stored so the template reads correctly even if that entry is removed.
+const templateExerciseSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  catalog_id: z.number().int().positive().nullish(),
+  target_sets: z.number().int().positive().max(50).nullish(),
+  target_reps: z.string().trim().max(40).nullish(),
+  notes: z.string().trim().max(200).nullish(),
+});
+
+export const workoutTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  notes: z.string().trim().max(2000).nullish(),
+  exercises: z.array(templateExerciseSchema).max(50).default([]),
+});
+
 /** First human-readable message from a failed safeParse. */
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input';
