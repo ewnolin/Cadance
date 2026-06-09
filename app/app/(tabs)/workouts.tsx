@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import {
   api,
   type CardioDetails,
@@ -22,6 +23,7 @@ import { formatDateLabel, formatDuration, titleCase } from "../../lib/format";
 import { colors, workoutTypeColor } from "../../lib/theme";
 import { Card, EmptyState, Pill } from "../../components/ui";
 import { WorkoutForm } from "../../components/WorkoutForm";
+import { StartSessionModal } from "../../components/StartSessionModal";
 
 /** One-line summary of a workout's defining metric. */
 function summarize(w: Workout): string {
@@ -42,11 +44,13 @@ function summarize(w: Workout): string {
 }
 
 export default function Workouts() {
+  const router = useRouter();
   const { data, error, initialLoading, reload } = useApiData(
     () => api.workouts.list(),
     []
   );
   const [adding, setAdding] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   async function createWorkout(input: WorkoutInput) {
     await api.workouts.create(input);
@@ -74,13 +78,22 @@ export default function Workouts() {
     <SafeAreaView className="flex-1 bg-[#0B0F14]" edges={["top"]}>
       <View className="flex-row items-center justify-between px-5 pb-2 pt-2">
         <Text className="text-3xl font-extrabold text-[#E7ECF2]">Workouts</Text>
-        <Pressable
-          onPress={() => setAdding(true)}
-          className="flex-row items-center gap-1.5 rounded-full bg-[#A3E635] px-4 py-2 active:opacity-80"
-        >
-          <Ionicons name="add" size={18} color={colors.accentText} />
-          <Text className="font-semibold text-[#0B0F14]">Log</Text>
-        </Pressable>
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => setStarting(true)}
+            className="flex-row items-center gap-1.5 rounded-full bg-[#A3E635] px-4 py-2 active:opacity-80"
+          >
+            <Ionicons name="play" size={16} color={colors.accentText} />
+            <Text className="font-semibold text-[#0B0F14]">Start</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setAdding(true)}
+            className="flex-row items-center gap-1.5 rounded-full border border-[#232B36] px-4 py-2 active:opacity-80"
+          >
+            <Ionicons name="add" size={18} color={colors.text} />
+            <Text className="font-semibold text-[#E7ECF2]">Log</Text>
+          </Pressable>
+        </View>
       </View>
 
       {initialLoading ? (
@@ -153,6 +166,17 @@ export default function Workouts() {
           />
         </SafeAreaView>
       </Modal>
+
+      <StartSessionModal
+        visible={starting}
+        onClose={() => setStarting(false)}
+        onStart={(templateId) => {
+          setStarting(false);
+          router.push(
+            templateId != null ? `/session?templateId=${templateId}` : "/session"
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
