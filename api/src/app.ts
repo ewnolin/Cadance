@@ -11,6 +11,7 @@ import { accountRouter } from './routes/account';
 import { workoutsRouter } from './routes/workouts';
 import { foodLogsRouter } from './routes/foodLogs';
 import { dashboardRouter } from './routes/dashboard';
+import { exercisesRouter } from './routes/exercises';
 import { ok, fail } from './lib/respond';
 
 export function createApp() {
@@ -56,6 +57,7 @@ export function createApp() {
   app.use('/workouts', workoutsRouter);
   app.use('/food-logs', foodLogsRouter);
   app.use('/dashboard', dashboardRouter);
+  app.use('/exercises', exercisesRouter);
 
   // 404 fallback.
   app.use((_req, res) => {

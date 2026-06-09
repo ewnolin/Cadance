@@ -66,9 +66,10 @@ Workouts are **polymorphic** by `type`: a shared core (`date`, `duration_s`,
 Body shapes (all take `date`, optional `duration_s`, optional `notes`):
 
 ```jsonc
-// strength
+// strength — exercises are stored as first-class rows (not in details).
+// Send them with the workout; they come back as an `exercises` array (ordered).
 { "type": "strength", "date": "2026-06-08", "duration_s": 3600,
-  "details": { "exercises": [ { "name": "Squat", "sets": [ { "reps": 5, "weight_kg": 100 } ] } ] } }
+  "exercises": [ { "name": "Squat", "sets": [ { "reps": 5, "weight_kg": 100 } ] } ] }
 
 // run / cycle (same cardio shape)
 { "type": "cycle", "date": "2026-06-08", "duration_s": 5400,
@@ -78,6 +79,15 @@ Body shapes (all take `date`, optional `duration_s`, optional `notes`):
 { "type": "yoga", "date": "2026-06-08", "duration_s": 1800,
   "details": { "style": "Vinyasa", "intensity": "moderate" } }
 ```
+
+### Exercises (require a session; scoped to the current user)
+Exercises live in their own table (FK to the workout, `ON DELETE CASCADE`) and
+are created/edited via their strength workout (above). These read-only views
+exist for progress tracking:
+
+- `GET /exercises[?name=Bench Press]` — per-exercise history across all workouts,
+  each row carrying its workout's `date` (newest first; name match is case-insensitive)
+- `GET /exercises/names` — distinct exercise names (for autocomplete)
 
 ### Food logs (all require a session; scoped to the current user)
 - `GET    /food-logs[?date=YYYY-MM-DD]` — list entries (optional date filter)

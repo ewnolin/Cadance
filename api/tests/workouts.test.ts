@@ -8,7 +8,7 @@ const strength = {
   type: 'strength',
   date: '2026-06-08',
   duration_s: 3600,
-  details: { exercises: [{ name: 'Squat', sets: [{ reps: 5, weight_kg: 100 }] }] },
+  exercises: [{ name: 'Squat', sets: [{ reps: 5, weight_kg: 100 }] }],
 };
 const cycle = {
   type: 'cycle',
@@ -25,7 +25,8 @@ describe('workouts', () => {
     const agent = await registerAgent('w@example.com');
     const s = await agent.post('/workouts').send(strength).expect(201);
     expect(s.body.data.type).toBe('strength');
-    expect(s.body.data.details.exercises).toHaveLength(1);
+    expect(s.body.data.exercises).toHaveLength(1);
+    expect(s.body.data.exercises[0]).toMatchObject({ name: 'Squat', position: 0 });
 
     const c = await agent.post('/workouts').send(cycle).expect(201);
     expect(c.body.data.type).toBe('cycle');
